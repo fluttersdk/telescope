@@ -8,18 +8,23 @@ import '../telescope_store.dart';
 
 /// Aggregator for ext.telescope.* VM Service extensions.
 void registerAllTelescopeExtensions() {
-  registerExtensionIdempotent('ext.telescope.requests', _requestsHandler);
-  registerExtensionIdempotent('ext.telescope.console', _consoleHandler);
-  registerExtensionIdempotent('ext.telescope.exceptions', _exceptionsHandler);
+  registerExtensionIdempotent('ext.telescope.requests', requestsHandler);
+  registerExtensionIdempotent('ext.telescope.console', consoleHandler);
+  registerExtensionIdempotent('ext.telescope.exceptions', exceptionsHandler);
   registerExtensionIdempotent('ext.telescope.events', eventsHandler);
   registerExtensionIdempotent('ext.telescope.gates', gatesHandler);
   registerExtensionIdempotent('ext.telescope.dumps', dumpsHandler);
-  registerExtensionIdempotent('ext.telescope.clear', _clearHandler);
-  registerExtensionIdempotent('ext.telescope.pause', _pauseHandler);
-  registerExtensionIdempotent('ext.telescope.resume', _resumeHandler);
+  registerExtensionIdempotent('ext.telescope.clear', clearHandler);
+  registerExtensionIdempotent('ext.telescope.pause', pauseHandler);
+  registerExtensionIdempotent('ext.telescope.resume', resumeHandler);
 }
 
-Future<developer.ServiceExtensionResponse> _requestsHandler(
+/// Handler for ext.telescope.requests.
+///
+/// Returns recent [HttpRequestRecord] entries from [TelescopeStore]. Accepts an
+/// optional `limit` param (stringified integer) to cap the result set.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> requestsHandler(
   String method,
   Map<String, String> params,
 ) async {
@@ -30,7 +35,13 @@ Future<developer.ServiceExtensionResponse> _requestsHandler(
   );
 }
 
-Future<developer.ServiceExtensionResponse> _consoleHandler(
+/// Handler for ext.telescope.console.
+///
+/// Returns recent [LogRecordEntry] entries from [TelescopeStore]. Accepts an
+/// optional `limit` param (stringified integer) and an optional `level` param
+/// (minimum log level name) to filter the result set.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> consoleHandler(
   String method,
   Map<String, String> params,
 ) async {
@@ -42,7 +53,12 @@ Future<developer.ServiceExtensionResponse> _consoleHandler(
   );
 }
 
-Future<developer.ServiceExtensionResponse> _exceptionsHandler(
+/// Handler for ext.telescope.exceptions.
+///
+/// Returns recent [ExceptionRecord] entries from [TelescopeStore]. Accepts an
+/// optional `limit` param (stringified integer) to cap the result set.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> exceptionsHandler(
   String method,
   Map<String, String> params,
 ) async {
@@ -101,7 +117,11 @@ Future<developer.ServiceExtensionResponse> dumpsHandler(
   );
 }
 
-Future<developer.ServiceExtensionResponse> _clearHandler(
+/// Handler for ext.telescope.clear.
+///
+/// Clears all buffers in [TelescopeStore] and returns `{'cleared': true}`.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> clearHandler(
   String method,
   Map<String, String> params,
 ) async {
@@ -111,7 +131,12 @@ Future<developer.ServiceExtensionResponse> _clearHandler(
   );
 }
 
-Future<developer.ServiceExtensionResponse> _pauseHandler(
+/// Handler for ext.telescope.pause.
+///
+/// Pauses recording in [TelescopeStore] so subsequent record calls become
+/// no-ops until [resumeHandler] is invoked.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> pauseHandler(
   String method,
   Map<String, String> params,
 ) async {
@@ -121,7 +146,11 @@ Future<developer.ServiceExtensionResponse> _pauseHandler(
   );
 }
 
-Future<developer.ServiceExtensionResponse> _resumeHandler(
+/// Handler for ext.telescope.resume.
+///
+/// Resumes recording in [TelescopeStore] after a prior [pauseHandler] call.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> resumeHandler(
   String method,
   Map<String, String> params,
 ) async {
