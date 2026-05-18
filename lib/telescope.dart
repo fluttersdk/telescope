@@ -27,6 +27,7 @@ export 'src/records/magic_model_record.dart';
 export 'src/telescope_artisan_provider.dart';
 export 'src/telescope_plugin.dart';
 export 'src/telescope_store.dart';
+export 'src/watchers/dump_watcher.dart';
 export 'src/watchers/exception_watcher.dart';
 export 'src/watchers/log_watcher.dart';
 export 'src/watchers/watcher.dart';
