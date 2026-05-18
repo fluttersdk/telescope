@@ -1,0 +1,15 @@
+# Dart/Flutter build artifacts
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+
+# Coverage
+coverage/
+
+# Personal companion (not committed)
+CLAUDE.local.md
