@@ -61,7 +61,7 @@ dart run fluttersdk_artisan:mcp
 Then call the tools from your MCP client:
 
 - `telescope_requests` for HTTP captures.
-- `telescope_magic_models` for Model lifecycle captures.
+- Model lifecycle captures land in the `magic_model` ring buffer but are NOT MCP-surfaced in alpha-2 (`telescope_models` is V1.x backlog). Read them through the artisan `tinker_eval` MCP tool with the expression `TelescopeStore.recentModels().map((r) => r.toJson()).toList()`.
 - `telescope_gates` for gate-check captures.
 - `telescope_events` for app event captures.
 

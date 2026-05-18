@@ -58,9 +58,13 @@ class _DemoApp extends StatelessWidget {
 
 /// Single-screen demo. Each button exercises exactly one
 /// telescope-via-magic capture surface; the snackbar feedback confirms the
-/// trigger fired so the operator knows to pull the matching telescope MCP
-/// tool (`telescope_requests`, `telescope_magic_models`, `telescope_gates`,
-/// `telescope_events`) to see the captured record.
+/// trigger fired so the operator knows where to look. Most surfaces have a
+/// matching MCP tool (`telescope_requests`, `telescope_gates`,
+/// `telescope_events`); the MagicModelWatcher writes into the `magic_model`
+/// ring buffer which alpha-2 does NOT yet surface via MCP (read it through
+/// the artisan `tinker_eval` MCP tool with the expression
+/// `TelescopeStore.recentModels().map((r) => r.toJson()).toList()`, or wait
+/// for the V1.x `telescope_models` descriptor in the backlog).
 class _HomeScreen extends StatelessWidget {
   const _HomeScreen();
 
@@ -87,7 +91,8 @@ class _HomeScreen extends StatelessWidget {
     final model = DemoModel.fromMap({'id': 'demo-1', 'name': 'Hello'});
     await Event.dispatch(ModelCreated(model));
     if (!context.mounted) return;
-    _flash(context, 'Dispatched ModelCreated ; check telescope_magic_models');
+    _flash(context,
+        'Dispatched ModelCreated ; verify via `tinker_eval` running `TelescopeStore.recentModels().map((r) => r.toJson()).toList()` (alpha-2 does not yet ship a telescope_models MCP tool)');
   }
 
   /// Dispatches [ModelSaved] for the same [DemoModel] shape. Mirrors the
@@ -97,7 +102,8 @@ class _HomeScreen extends StatelessWidget {
     final model = DemoModel.fromMap({'id': 'demo-1', 'name': 'Hello updated'});
     await Event.dispatch(ModelSaved(model));
     if (!context.mounted) return;
-    _flash(context, 'Dispatched ModelSaved ; check telescope_magic_models');
+    _flash(context,
+        'Dispatched ModelSaved ; verify via `tinker_eval` running `TelescopeStore.recentModels().map((r) => r.toJson()).toList()` (alpha-2 does not yet ship a telescope_models MCP tool)');
   }
 
   /// Dispatches [ModelDeleted]. Closes the lifecycle so the operator can
@@ -107,7 +113,8 @@ class _HomeScreen extends StatelessWidget {
     final model = DemoModel.fromMap({'id': 'demo-1', 'name': 'Hello'});
     await Event.dispatch(ModelDeleted(model));
     if (!context.mounted) return;
-    _flash(context, 'Dispatched ModelDeleted ; check telescope_magic_models');
+    _flash(context,
+        'Dispatched ModelDeleted ; verify via `tinker_eval` running `TelescopeStore.recentModels().map((r) => r.toJson()).toList()` (alpha-2 does not yet ship a telescope_models MCP tool)');
   }
 
   /// Calls `Gate.allows('demo.allow')`. Magic's gate manager dispatches
