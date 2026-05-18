@@ -73,7 +73,9 @@ void main() {
     // -------------------------------------------------------------------------
 
     group('payload coercions', () {
-      test('wraps single dynamic argument into List<Object?>', () async {
+      test(
+          'wraps single dynamic argument into List<Object?> with Model.toMap()',
+          () async {
         watcher.install();
         final _FakeModel target = _FakeModel()..setAttribute('id', 42);
 
@@ -88,7 +90,9 @@ void main() {
         final List<GateRecord> gates = TelescopeStore.recentGates();
         expect(gates, hasLength(1));
         expect(gates.first.arguments, hasLength(1));
-        expect(gates.first.arguments.first, same(target));
+        // Magic-side _coerceArg converts Model instances to their toMap()
+        // shape so the resulting GateRecord stays JSON-encodable end to end.
+        expect(gates.first.arguments.first, equals(target.toMap()));
       });
 
       test('wraps null argument into List<Object?> with a single null',

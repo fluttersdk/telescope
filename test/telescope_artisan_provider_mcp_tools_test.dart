@@ -66,7 +66,7 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Input schemas — JSON round-trip
+    // Input schemas : JSON round-trip
     // -------------------------------------------------------------------------
 
     test('every inputSchema survives a JSON encode/decode round-trip', () {
@@ -80,7 +80,7 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // telescope_exceptions — specific schema shape
+    // telescope_exceptions : specific schema shape
     // -------------------------------------------------------------------------
 
     test('telescope_exceptions declares a limit integer property', () {
@@ -102,7 +102,7 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // telescope_clear — empty properties
+    // telescope_clear : empty properties
     // -------------------------------------------------------------------------
 
     test('telescope_clear has an empty properties map', () {
@@ -113,7 +113,7 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // telescope_events — specific schema shape
+    // telescope_events : specific schema shape
     // -------------------------------------------------------------------------
 
     test('telescope_events declares a limit integer property', () {
@@ -136,7 +136,7 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // telescope_gates — specific schema shape
+    // telescope_gates : specific schema shape
     // -------------------------------------------------------------------------
 
     test('telescope_gates declares a limit integer property', () {
@@ -159,7 +159,7 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // telescope_dumps — specific schema shape
+    // telescope_dumps : specific schema shape
     // -------------------------------------------------------------------------
 
     test('telescope_dumps declares a limit integer property', () {

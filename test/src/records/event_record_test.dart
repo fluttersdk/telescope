@@ -78,7 +78,7 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Identity equality (matches existing records — no Equatable)
+    // Identity equality (matches existing records ; no Equatable)
     // -------------------------------------------------------------------------
 
     test('two records with same fields are not identical (default identity eq)',
