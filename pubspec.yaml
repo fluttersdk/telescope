@@ -20,5 +20,23 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  # Path dep (dev-only) for the Magic integration watcher tests under
+  # test/src/magic/. Magic ships MagicEventWatcher / MagicGateWatcher /
+  # MagicModelWatcher / MagicCacheWatcher / MagicHttpFacadeAdapter on top
+  # of telescope's TelescopePlugin extension points; the tests exercise
+  # those watchers via magic's EventDispatcher and TelescopeStore. Not a
+  # production dep — telescope stays framework-agnostic at runtime.
+  magic:
+    path: ../magic
+
+# Magic resolves fluttersdk_artisan via hosted constraint; mirror its
+# path override so the path-resolved `magic` dev_dep above unifies with
+# our own path dep on the same package. Required because magic ships
+# `dependency_overrides:` for the same packages in its own pubspec.
+dependency_overrides:
+  fluttersdk_artisan:
+    path: ../fluttersdk_artisan
+  fluttersdk_dusk:
+    path: ../fluttersdk_dusk
 
 publish_to: none
