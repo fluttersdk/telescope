@@ -18,9 +18,14 @@ import 'watcher.dart';
 ///
 /// Both hooks chain-preserve any previously-registered handler (Sentry,
 /// Bugsnag, etc.) so that downstream observability is never silently masked.
-/// The [PlatformDispatcher.onError] handler always returns `true` to signal
-/// that the error has been handled, preventing the default platform error
-/// handler from treating it as fatal.
+/// The [PlatformDispatcher.onError] handler chain-preserves the previous
+/// handler's return value (`_previousPlatformOnError?.call(...) ?? true`).
+/// When a previously-registered handler returns `false`, this watcher also
+/// returns `false`, which propagates the error to the native platform crash
+/// handler. This is the Sentry-friendly contract: telescope captures the
+/// record AND lets the downstream library decide whether the error is fatal.
+/// When no previous handler exists, the default is `true` (handled) which
+/// matches the pre-iter-2 single-hook behavior.
 ///
 /// On [uninstall], both handlers are restored to exactly the values they held
 /// before [install] was called. Calling [install] while already installed is
@@ -63,10 +68,11 @@ class ExceptionWatcher implements TelescopeWatcher {
           stackTrace: stack.toString(),
         ),
       );
-      _previousPlatformOnError?.call(error, stack);
-      // Return true to signal the error is handled and prevent the platform
-      // from treating it as a fatal unhandled exception.
-      return true;
+      // Chain-preserve the previous handler's return value so downstream
+      // observability tools (Sentry, Bugsnag) keep their fatal-propagation
+      // semantics. If no previous handler exists, default to `true` (handled)
+      // to match the legacy single-hook behavior.
+      return _previousPlatformOnError?.call(error, stack) ?? true;
     };
   }
 

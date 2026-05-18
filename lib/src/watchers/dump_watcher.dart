@@ -29,7 +29,9 @@ class DumpWatcher implements TelescopeWatcher {
   @override
   String get name => 'dump';
 
-  DebugPrintCallback? _previous;
+  /// Holds the live `debugPrint` reference captured at install time. Typed
+  /// non-nullable so `uninstall()` can restore it literally without a fallback.
+  late DebugPrintCallback _previous;
   bool _installed = false;
 
   @override
@@ -51,14 +53,14 @@ class DumpWatcher implements TelescopeWatcher {
           wrapWidth: wrapWidth,
         ),
       );
-      _previous?.call(message, wrapWidth: wrapWidth);
+      _previous(message, wrapWidth: wrapWidth);
     };
   }
 
   @override
   void uninstall() {
     if (!_installed) return;
-    debugPrint = _previous!;
+    debugPrint = _previous;
     _installed = false;
   }
 }
