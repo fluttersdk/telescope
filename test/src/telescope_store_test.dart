@@ -384,6 +384,273 @@ void main() {
       expect(TelescopeStore.recentCaches(), hasLength(2));
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Backfill: boundary cases for the original 5-buffer surface.
+  // ---------------------------------------------------------------------------
+
+  group('TelescopeStore FIFO eviction on original 5 buffers (order check)', () {
+    test('recordLog enforces FIFO: oldest entries evicted, newest retained',
+        () {
+      TelescopeStore.setCapacity(3);
+
+      for (var i = 0; i < 6; i++) {
+        TelescopeStore.recordLog(_log('info', 'msg$i'));
+      }
+
+      final recent = TelescopeStore.recentLogs();
+      expect(recent.length, equals(3));
+      expect(recent.first.message, equals('msg3'));
+      expect(recent.last.message, equals('msg5'));
+    });
+
+    test(
+        'recordException enforces FIFO: oldest entries evicted, newest retained',
+        () {
+      TelescopeStore.setCapacity(3);
+
+      for (var i = 0; i < 5; i++) {
+        TelescopeStore.recordException(_exception('err$i'));
+      }
+
+      final recent = TelescopeStore.recentExceptions();
+      expect(recent.length, equals(3));
+      expect(recent.first.message, equals('err2'));
+      expect(recent.last.message, equals('err4'));
+    });
+
+    test(
+        'recordMagicModel enforces FIFO: oldest entries evicted, newest retained',
+        () {
+      TelescopeStore.setCapacity(2);
+
+      TelescopeStore.recordMagicModel(_model('User', 'created'));
+      TelescopeStore.recordMagicModel(_model('Team', 'updated'));
+      TelescopeStore.recordMagicModel(_model('Monitor', 'deleted'));
+
+      final recent = TelescopeStore.recentModels();
+      expect(recent.length, equals(2));
+      expect(recent.first.modelClass, equals('Team'));
+      expect(recent.last.modelClass, equals('Monitor'));
+    });
+
+    test(
+        'recordMagicCache enforces FIFO: oldest entries evicted, newest retained',
+        () {
+      TelescopeStore.setCapacity(2);
+
+      TelescopeStore.recordMagicCache(_cache('k1'));
+      TelescopeStore.recordMagicCache(_cache('k2'));
+      TelescopeStore.recordMagicCache(_cache('k3'));
+
+      final recent = TelescopeStore.recentCaches();
+      expect(recent.length, equals(2));
+      expect(recent.first.key, equals('k2'));
+      expect(recent.last.key, equals('k3'));
+    });
+  });
+
+  group('TelescopeStore recentX(limit:) on original 5 buffers', () {
+    test('recentHttp(limit:) returns at most limit items, newest-last', () {
+      for (var i = 0; i < 10; i++) {
+        TelescopeStore.recordHttp(_http(i));
+      }
+
+      final recent = TelescopeStore.recentHttp(limit: 4);
+      expect(recent.length, equals(4));
+      expect(recent.first.method, equals('GET-6'));
+      expect(recent.last.method, equals('GET-9'));
+    });
+
+    test('recentLogs(limit:) returns at most limit items, newest-last', () {
+      for (var i = 0; i < 8; i++) {
+        TelescopeStore.recordLog(_log('info', 'msg$i'));
+      }
+
+      final recent = TelescopeStore.recentLogs(limit: 3);
+      expect(recent.length, equals(3));
+      expect(recent.first.message, equals('msg5'));
+      expect(recent.last.message, equals('msg7'));
+    });
+
+    test('recentExceptions(limit:) returns at most limit items, newest-last',
+        () {
+      for (var i = 0; i < 6; i++) {
+        TelescopeStore.recordException(_exception('err$i'));
+      }
+
+      final recent = TelescopeStore.recentExceptions(limit: 2);
+      expect(recent.length, equals(2));
+      expect(recent.first.message, equals('err4'));
+      expect(recent.last.message, equals('err5'));
+    });
+
+    test('recentModels(limit:) returns at most limit items, newest-last', () {
+      final classes = ['User', 'Team', 'Monitor', 'Metric', 'Incident'];
+      for (final c in classes) {
+        TelescopeStore.recordMagicModel(_model(c, 'created'));
+      }
+
+      final recent = TelescopeStore.recentModels(limit: 2);
+      expect(recent.length, equals(2));
+      expect(recent.first.modelClass, equals('Metric'));
+      expect(recent.last.modelClass, equals('Incident'));
+    });
+
+    test('recentCaches(limit:) returns at most limit items, newest-last', () {
+      for (var i = 0; i < 5; i++) {
+        TelescopeStore.recordMagicCache(_cache('k$i'));
+      }
+
+      final recent = TelescopeStore.recentCaches(limit: 3);
+      expect(recent.length, equals(3));
+      expect(recent.first.key, equals('k2'));
+      expect(recent.last.key, equals('k4'));
+    });
+  });
+
+  group('TelescopeStore _meetsLevel boundary cases (via recentLogs minLevel:)',
+      () {
+    test('minLevel equal to record level passes (warning >= warning)', () {
+      TelescopeStore.recordLog(_log('warning', 'at-boundary'));
+
+      final recent = TelescopeStore.recentLogs(minLevel: 'warning');
+      expect(recent, hasLength(1));
+      expect(recent.single.message, equals('at-boundary'));
+    });
+
+    test('record level below minLevel is filtered out (info < warning)', () {
+      TelescopeStore.recordLog(_log('info', 'too-low'));
+
+      final recent = TelescopeStore.recentLogs(minLevel: 'warning');
+      expect(recent, isEmpty);
+    });
+
+    test('_meetsLevel is case-insensitive (WARNING matches warning)', () {
+      TelescopeStore.recordLog(_log('WARNING', 'upper'));
+      TelescopeStore.recordLog(_log('info', 'lower'));
+
+      final recent = TelescopeStore.recentLogs(minLevel: 'Warning');
+      expect(recent, hasLength(1));
+      expect(recent.single.message, equals('upper'));
+    });
+
+    test('severe passes when minLevel is warning (severe > warning)', () {
+      TelescopeStore.recordLog(_log('severe', 'critical'));
+      TelescopeStore.recordLog(_log('info', 'dropped'));
+
+      final recent = TelescopeStore.recentLogs(minLevel: 'warning');
+      expect(recent, hasLength(1));
+      expect(recent.single.message, equals('critical'));
+    });
+  });
+
+  group('TelescopeStore clear() does not close streams', () {
+    test('onHttpRecord stream remains usable after clear()', () async {
+      TelescopeStore.recordHttp(_http(1));
+      TelescopeStore.clear();
+
+      final record = _http(2);
+
+      final future = expectLater(
+        TelescopeStore.onHttpRecord,
+        emits(same(record)),
+      );
+
+      TelescopeStore.recordHttp(record);
+      expect(TelescopeStore.recentHttp().single, same(record));
+      await future;
+    });
+
+    test('onLogRecord stream remains usable after clear()', () async {
+      TelescopeStore.recordLog(_log('info', 'before'));
+      TelescopeStore.clear();
+
+      final record = _log('info', 'after');
+
+      final future = expectLater(
+        TelescopeStore.onLogRecord,
+        emits(same(record)),
+      );
+
+      TelescopeStore.recordLog(record);
+      expect(TelescopeStore.recentLogs().single, same(record));
+      await future;
+    });
+  });
+
+  group(
+      'TelescopeStore setCapacity() does not trim existing entries retroactively',
+      () {
+    test(
+        'reducing capacity leaves existing entries untouched until next record',
+        () {
+      // 1. Fill 5 entries at default capacity.
+      for (var i = 0; i < 5; i++) {
+        TelescopeStore.recordHttp(_http(i));
+      }
+
+      // 2. Lower capacity below current count; no eviction yet.
+      TelescopeStore.setCapacity(3);
+
+      expect(TelescopeStore.recentHttp(), hasLength(5));
+
+      // 3. Next record triggers eviction down to the new cap.
+      TelescopeStore.recordHttp(_http(5));
+
+      final recent = TelescopeStore.recentHttp();
+      expect(recent.length, equals(3));
+      expect(recent.first.method, equals('GET-3'));
+      expect(recent.last.method, equals('GET-5'));
+    });
+  });
+
+  group('TelescopeStore resetForTesting() full contract', () {
+    test('resetForTesting() clears all buffers', () {
+      TelescopeStore.recordHttp(_http(0));
+      TelescopeStore.recordLog(_log('info', 'm'));
+      TelescopeStore.recordException(_exception('e'));
+      TelescopeStore.recordMagicModel(_model('User', 'created'));
+      TelescopeStore.recordMagicCache(_cache('k'));
+      TelescopeStore.recordEvent(_event('E'));
+      TelescopeStore.recordGate(_gate('g', true));
+      TelescopeStore.recordDump(_dump('d'));
+
+      TelescopeStore.resetForTesting();
+
+      expect(TelescopeStore.recentHttp(), isEmpty);
+      expect(TelescopeStore.recentLogs(), isEmpty);
+      expect(TelescopeStore.recentExceptions(), isEmpty);
+      expect(TelescopeStore.recentModels(), isEmpty);
+      expect(TelescopeStore.recentCaches(), isEmpty);
+      expect(TelescopeStore.recentEvents(), isEmpty);
+      expect(TelescopeStore.recentGates(), isEmpty);
+      expect(TelescopeStore.recentDumps(), isEmpty);
+    });
+
+    test('resetForTesting() resets capacity to 500', () {
+      TelescopeStore.setCapacity(10);
+      TelescopeStore.resetForTesting();
+
+      // Push 501 records; only 500 should be retained.
+      for (var i = 0; i < 501; i++) {
+        TelescopeStore.recordHttp(_http(i));
+      }
+
+      expect(TelescopeStore.recentHttp(), hasLength(500));
+    });
+
+    test('resetForTesting() unsets pause so recording resumes immediately', () {
+      TelescopeStore.pause();
+      TelescopeStore.resetForTesting();
+
+      TelescopeStore.recordHttp(_http(0));
+      TelescopeStore.recordLog(_log('info', 'm'));
+
+      expect(TelescopeStore.recentHttp(), hasLength(1));
+      expect(TelescopeStore.recentLogs(), hasLength(1));
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
