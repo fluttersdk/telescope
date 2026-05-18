@@ -28,15 +28,15 @@ class HttpRequestRecord {
   final bool attributedHeuristically;
 
   Map<String, dynamic> toJson() => {
-    'url': url,
-    'method': method,
-    'statusCode': statusCode,
-    'durationMs': durationMs,
-    'isError': isError,
-    'timestamp': timestamp.toIso8601String(),
-    if (requestHeaders != null) 'requestHeaders': requestHeaders,
-    if (requestBody != null) 'requestBody': requestBody,
-    if (responseBody != null) 'responseBody': responseBody,
-    if (attributedHeuristically) 'attributedHeuristically': true,
-  };
+        'url': url,
+        'method': method,
+        'statusCode': statusCode,
+        'durationMs': durationMs,
+        'isError': isError,
+        'timestamp': timestamp.toIso8601String(),
+        if (requestHeaders != null) 'requestHeaders': requestHeaders,
+        if (requestBody != null) 'requestBody': requestBody,
+        if (responseBody != null) 'responseBody': responseBody,
+        if (attributedHeuristically) 'attributedHeuristically': true,
+      };
 }

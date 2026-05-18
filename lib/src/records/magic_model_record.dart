@@ -18,10 +18,10 @@ class MagicModelRecord {
   final Map<String, dynamic>? attributes;
 
   Map<String, dynamic> toJson() => {
-    'modelClass': modelClass,
-    'event': event,
-    'modelKey': modelKey,
-    'time': time.toIso8601String(),
-    if (attributes != null) 'attributes': attributes,
-  };
+        'modelClass': modelClass,
+        'event': event,
+        'modelKey': modelKey,
+        'time': time.toIso8601String(),
+        if (attributes != null) 'attributes': attributes,
+      };
 }

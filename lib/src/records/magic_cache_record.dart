@@ -15,9 +15,9 @@ class MagicCacheRecord {
   final Duration? ttl;
 
   Map<String, dynamic> toJson() => {
-    'operation': operation,
-    'key': key,
-    'time': time.toIso8601String(),
-    if (ttl != null) 'ttlMs': ttl!.inMilliseconds,
-  };
+        'operation': operation,
+        'key': key,
+        'time': time.toIso8601String(),
+        if (ttl != null) 'ttlMs': ttl!.inMilliseconds,
+      };
 }

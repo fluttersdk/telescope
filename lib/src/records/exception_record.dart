@@ -15,10 +15,10 @@ class ExceptionRecord {
   final String? isolate;
 
   Map<String, dynamic> toJson() => {
-    'exceptionType': exceptionType,
-    'message': message,
-    'time': time.toIso8601String(),
-    if (stackTrace != null) 'stackTrace': stackTrace,
-    if (isolate != null) 'isolate': isolate,
-  };
+        'exceptionType': exceptionType,
+        'message': message,
+        'time': time.toIso8601String(),
+        if (stackTrace != null) 'stackTrace': stackTrace,
+        if (isolate != null) 'isolate': isolate,
+      };
 }
