@@ -8,7 +8,7 @@ import 'commands/telescope_tail_command.dart';
 /// dispatcher.
 ///
 /// V1 ships 3 CLI commands (telescope:tail, telescope:requests, telescope:clear)
-/// and 4 MCP tools backed by ext.telescope.* VM Service extensions registered
+/// and 7 MCP tools backed by ext.telescope.* VM Service extensions registered
 /// by [registerAllTelescopeExtensions]. The pause/resume extensions are BACKLOG
 /// per D5 and are intentionally absent from mcpTools().
 class TelescopeArtisanProvider extends ArtisanServiceProvider {
@@ -147,6 +147,113 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
             },
           },
           extensionMethod: 'ext.telescope.exceptions',
+        ),
+        McpToolDescriptor(
+          name: 'telescope_events',
+          description: 'Return recent in-app event records from the running '
+              'Flutter app.\n'
+              '\n'
+              'Reads the Telescope events ring buffer (populated by the '
+              'MagicEventWatcher whenever `Event.dispatch()` is called). '
+              'Each record carries timestamp, event class name, and a JSON '
+              'snapshot of the event payload. Use this to trace event-driven '
+              'side effects (cache invalidation, broadcast echoes, model '
+              'lifecycle transitions) without adding debug print statements '
+              'to the codebase.\n'
+              '\n'
+              'Usage:\n'
+              '- Pass `limit: <n>` to cap how many records come back '
+              '(default returns the whole buffer; cap is ring-buffer '
+              'size).\n'
+              '- Returns newest-first; pair with telescope_clear before a '
+              'repro to isolate just the relevant event sequence.\n'
+              '- Only events dispatched through the Magic `Event` facade '
+              'are recorded; raw `ChangeNotifier.notifyListeners` calls '
+              'are invisible to this tool.\n'
+              '- For HTTP traffic use telescope_requests; for gate '
+              'checks use telescope_gates.',
+          inputSchema: {
+            'type': 'object',
+            'properties': {
+              'limit': {
+                'type': 'integer',
+                'description': 'Maximum number of event records to return '
+                    '(newest first). Omit for the whole buffer (cap '
+                    'enforced by the ring-buffer size, typically 500).',
+              },
+            },
+          },
+          extensionMethod: 'ext.telescope.events',
+        ),
+        McpToolDescriptor(
+          name: 'telescope_gates',
+          description: 'Return recent Gate authorization check records from '
+              'the running Flutter app.\n'
+              '\n'
+              'Reads the Telescope gates ring buffer (populated by the '
+              'MagicGateWatcher on every `Gate.allows / Gate.denies` call). '
+              'Each record carries timestamp, ability name, result (allowed '
+              'or denied), authenticated user id, and the argument class '
+              'name if one was provided. Use this to debug authorization '
+              'issues (why a button is hidden, why a route is blocked) '
+              'without modifying policy classes.\n'
+              '\n'
+              'Usage:\n'
+              '- Pass `limit: <n>` to cap how many records come back '
+              '(default returns the whole buffer).\n'
+              '- Returns newest-first; pair with telescope_clear before '
+              'walking a guarded flow to isolate just the relevant checks.\n'
+              '- Only checks routed through the Magic `Gate` facade are '
+              'recorded; direct policy class calls are not captured.\n'
+              '- For event side effects use telescope_events; for HTTP '
+              'traffic use telescope_requests.',
+          inputSchema: {
+            'type': 'object',
+            'properties': {
+              'limit': {
+                'type': 'integer',
+                'description': 'Maximum number of gate check records to '
+                    'return (newest first). Omit for the whole buffer (cap '
+                    'enforced by the ring-buffer size, typically 500).',
+              },
+            },
+          },
+          extensionMethod: 'ext.telescope.gates',
+        ),
+        McpToolDescriptor(
+          name: 'telescope_dumps',
+          description: 'Return recent debug dump records from the running '
+              'Flutter app.\n'
+              '\n'
+              'Reads the Telescope dumps ring buffer (populated by the '
+              'DumpWatcher which overrides `debugPrint` globally). Each '
+              'record carries timestamp and the full message string that '
+              'was passed to `debugPrint`. Use this to read `print()` / '
+              '`debugPrint()` output from within the running app without '
+              'scraping flutter run stdout.\n'
+              '\n'
+              'Usage:\n'
+              '- Pass `limit: <n>` to cap how many records come back '
+              '(default returns the whole buffer).\n'
+              '- Returns newest-first; pair with telescope_clear before '
+              'a repro to isolate just the relevant print output.\n'
+              '- Only output routed through `debugPrint` (the global '
+              'override point) is captured; `dart:io stdout.write` calls '
+              'are invisible to this tool.\n'
+              '- For structured logs use telescope_tail; for crashes use '
+              'telescope_exceptions.',
+          inputSchema: {
+            'type': 'object',
+            'properties': {
+              'limit': {
+                'type': 'integer',
+                'description': 'Maximum number of dump records to return '
+                    '(newest first). Omit for the whole buffer (cap '
+                    'enforced by the ring-buffer size, typically 500).',
+              },
+            },
+          },
+          extensionMethod: 'ext.telescope.dumps',
         ),
       ];
 }

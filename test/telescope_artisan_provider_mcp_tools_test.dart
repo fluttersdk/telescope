@@ -17,15 +17,15 @@ void main() {
     // Length
     // -------------------------------------------------------------------------
 
-    test('returns exactly 4 descriptors', () {
-      expect(tools, hasLength(4));
+    test('returns exactly 7 descriptors', () {
+      expect(tools, hasLength(7));
     });
 
     // -------------------------------------------------------------------------
     // Names
     // -------------------------------------------------------------------------
 
-    test('contains all 4 expected tool names', () {
+    test('contains all 7 expected tool names', () {
       final names = tools.map((t) => t.name).toList();
       expect(
         names,
@@ -34,6 +34,9 @@ void main() {
           'telescope_requests',
           'telescope_clear',
           'telescope_exceptions',
+          'telescope_events',
+          'telescope_gates',
+          'telescope_dumps',
         ]),
       );
     });
@@ -51,6 +54,9 @@ void main() {
       expect(byName['telescope_clear'], equals('ext.telescope.clear'));
       expect(
           byName['telescope_exceptions'], equals('ext.telescope.exceptions'));
+      expect(byName['telescope_events'], equals('ext.telescope.events'));
+      expect(byName['telescope_gates'], equals('ext.telescope.gates'));
+      expect(byName['telescope_dumps'], equals('ext.telescope.dumps'));
     });
 
     test('no two descriptors share an extensionMethod (no overlap, no gap)',
@@ -104,6 +110,75 @@ void main() {
       final properties =
           clear.inputSchema['properties'] as Map<String, dynamic>;
       expect(properties, isEmpty);
+    });
+
+    // -------------------------------------------------------------------------
+    // telescope_events — specific schema shape
+    // -------------------------------------------------------------------------
+
+    test('telescope_events declares a limit integer property', () {
+      final events = tools.firstWhere((t) => t.name == 'telescope_events');
+      final properties =
+          events.inputSchema['properties'] as Map<String, dynamic>;
+      expect(properties.containsKey('limit'), isTrue);
+      final limit = properties['limit'] as Map<String, dynamic>;
+      expect(limit['type'], equals('integer'));
+    });
+
+    test('telescope_events does not declare required params', () {
+      final events = tools.firstWhere((t) => t.name == 'telescope_events');
+      expect(events.inputSchema.containsKey('required'), isFalse);
+    });
+
+    test('telescope_events description contains "Usage:"', () {
+      final events = tools.firstWhere((t) => t.name == 'telescope_events');
+      expect(events.description, contains('Usage:'));
+    });
+
+    // -------------------------------------------------------------------------
+    // telescope_gates — specific schema shape
+    // -------------------------------------------------------------------------
+
+    test('telescope_gates declares a limit integer property', () {
+      final gates = tools.firstWhere((t) => t.name == 'telescope_gates');
+      final properties =
+          gates.inputSchema['properties'] as Map<String, dynamic>;
+      expect(properties.containsKey('limit'), isTrue);
+      final limit = properties['limit'] as Map<String, dynamic>;
+      expect(limit['type'], equals('integer'));
+    });
+
+    test('telescope_gates does not declare required params', () {
+      final gates = tools.firstWhere((t) => t.name == 'telescope_gates');
+      expect(gates.inputSchema.containsKey('required'), isFalse);
+    });
+
+    test('telescope_gates description contains "Usage:"', () {
+      final gates = tools.firstWhere((t) => t.name == 'telescope_gates');
+      expect(gates.description, contains('Usage:'));
+    });
+
+    // -------------------------------------------------------------------------
+    // telescope_dumps — specific schema shape
+    // -------------------------------------------------------------------------
+
+    test('telescope_dumps declares a limit integer property', () {
+      final dumps = tools.firstWhere((t) => t.name == 'telescope_dumps');
+      final properties =
+          dumps.inputSchema['properties'] as Map<String, dynamic>;
+      expect(properties.containsKey('limit'), isTrue);
+      final limit = properties['limit'] as Map<String, dynamic>;
+      expect(limit['type'], equals('integer'));
+    });
+
+    test('telescope_dumps does not declare required params', () {
+      final dumps = tools.firstWhere((t) => t.name == 'telescope_dumps');
+      expect(dumps.inputSchema.containsKey('required'), isFalse);
+    });
+
+    test('telescope_dumps description contains "Usage:"', () {
+      final dumps = tools.firstWhere((t) => t.name == 'telescope_dumps');
+      expect(dumps.description, contains('Usage:'));
     });
   });
 }
