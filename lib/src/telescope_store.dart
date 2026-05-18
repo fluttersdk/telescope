@@ -3,21 +3,24 @@ import 'dart:collection';
 
 import 'package:meta/meta.dart';
 
+import 'records/dump_record.dart';
+import 'records/event_record.dart';
 import 'records/exception_record.dart';
+import 'records/gate_record.dart';
 import 'records/http_request_record.dart';
 import 'records/log_record_entry.dart';
 import 'records/magic_cache_record.dart';
 import 'records/magic_model_record.dart';
 
-/// In-memory ring-buffer store for the 5 V1 watcher record types.
+/// In-memory ring-buffer store for the 8 V1+alpha-2 watcher record types.
 ///
-/// Default cap: 100 entries per buffer (configurable via setCapacity).
+/// Default cap: 500 entries per buffer (configurable via [setCapacity]).
 /// Singleton accessed via static methods. Hot-restart resets the buffers
 /// naturally (statics re-run their initializers).
 class TelescopeStore {
   TelescopeStore._();
 
-  static int _cap = 100;
+  static int _cap = 500;
   static bool _paused = false;
 
   static final Queue<HttpRequestRecord> _http = Queue<HttpRequestRecord>();
@@ -25,6 +28,9 @@ class TelescopeStore {
   static final Queue<ExceptionRecord> _exceptions = Queue<ExceptionRecord>();
   static final Queue<MagicModelRecord> _models = Queue<MagicModelRecord>();
   static final Queue<MagicCacheRecord> _caches = Queue<MagicCacheRecord>();
+  static final Queue<EventRecord> _events = Queue<EventRecord>();
+  static final Queue<GateRecord> _gates = Queue<GateRecord>();
+  static final Queue<DumpRecord> _dumps = Queue<DumpRecord>();
 
   static final StreamController<HttpRequestRecord> _httpStream =
       StreamController<HttpRequestRecord>.broadcast();
@@ -36,8 +42,14 @@ class TelescopeStore {
       StreamController<MagicModelRecord>.broadcast();
   static final StreamController<MagicCacheRecord> _cacheStream =
       StreamController<MagicCacheRecord>.broadcast();
+  static final StreamController<EventRecord> _eventStream =
+      StreamController<EventRecord>.broadcast();
+  static final StreamController<GateRecord> _gateStream =
+      StreamController<GateRecord>.broadcast();
+  static final StreamController<DumpRecord> _dumpStream =
+      StreamController<DumpRecord>.broadcast();
 
-  /// Set per-buffer capacity (default 100).
+  /// Set per-buffer capacity (default 500).
   static void setCapacity(int cap) => _cap = cap;
 
   /// Pause all recording. Calls become no-ops until [resume].
@@ -53,6 +65,9 @@ class TelescopeStore {
     _exceptions.clear();
     _models.clear();
     _caches.clear();
+    _events.clear();
+    _gates.clear();
+    _dumps.clear();
   }
 
   static void recordHttp(HttpRequestRecord r) {
@@ -100,6 +115,33 @@ class TelescopeStore {
     _cacheStream.add(r);
   }
 
+  static void recordEvent(EventRecord r) {
+    if (_paused) return;
+    _events.addLast(r);
+    while (_events.length > _cap) {
+      _events.removeFirst();
+    }
+    _eventStream.add(r);
+  }
+
+  static void recordGate(GateRecord r) {
+    if (_paused) return;
+    _gates.addLast(r);
+    while (_gates.length > _cap) {
+      _gates.removeFirst();
+    }
+    _gateStream.add(r);
+  }
+
+  static void recordDump(DumpRecord r) {
+    if (_paused) return;
+    _dumps.addLast(r);
+    while (_dumps.length > _cap) {
+      _dumps.removeFirst();
+    }
+    _dumpStream.add(r);
+  }
+
   static List<HttpRequestRecord> recentHttp({int? limit}) =>
       _recent(_http, limit);
   static List<LogRecordEntry> recentLogs({int? limit, String? minLevel}) {
@@ -115,6 +157,10 @@ class TelescopeStore {
       _recent(_models, limit);
   static List<MagicCacheRecord> recentCaches({int? limit}) =>
       _recent(_caches, limit);
+  static List<EventRecord> recentEvents({int? limit}) =>
+      _recent(_events, limit);
+  static List<GateRecord> recentGates({int? limit}) => _recent(_gates, limit);
+  static List<DumpRecord> recentDumps({int? limit}) => _recent(_dumps, limit);
 
   static List<T> _recent<T>(Queue<T> q, int? limit) => _trim(q.toList(), limit);
 
@@ -144,12 +190,15 @@ class TelescopeStore {
       _exceptionStream.stream;
   static Stream<MagicModelRecord> get onModelRecord => _modelStream.stream;
   static Stream<MagicCacheRecord> get onCacheRecord => _cacheStream.stream;
+  static Stream<EventRecord> get onEventRecord => _eventStream.stream;
+  static Stream<GateRecord> get onGateRecord => _gateStream.stream;
+  static Stream<DumpRecord> get onDumpRecord => _dumpStream.stream;
 
   /// Test-only reset.
   @visibleForTesting
   static void resetForTesting() {
     clear();
     _paused = false;
-    _cap = 100;
+    _cap = 500;
   }
 }
