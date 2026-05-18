@@ -1,0 +1,24 @@
+name: example
+description: Vanilla Flutter app demonstrating every fluttersdk_telescope capture surface (HTTP, logs, exceptions, debugPrint).
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  fluttersdk_telescope:
+    path: ../
+  dio: ^5.7.0
+  logging: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

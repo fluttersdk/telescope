@@ -1,0 +1,35 @@
+name: example_magic
+description: Magic-stack Flutter app demonstrating every fluttersdk_telescope Magic adapter (Http facade, Model lifecycle, Gate ability, app event).
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  magic:
+    path: ../../magic
+  fluttersdk_telescope:
+    path: ../
+
+# Mirror the magic + fluttersdk_telescope path overrides so the
+# transitive `fluttersdk_artisan` / `fluttersdk_dusk` constraints
+# resolve against the same monorepo siblings instead of pub.dev.
+dependency_overrides:
+  fluttersdk_artisan:
+    path: ../../fluttersdk_artisan
+  fluttersdk_dusk:
+    path: ../../fluttersdk_dusk
+  fluttersdk_telescope:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
