@@ -1,6 +1,6 @@
 name: fluttersdk_telescope
 description: "Passive inspector for Flutter apps. HTTP capture (Dio adapter) + log sink (package:logging) + exception capture + in-app Flutter overlay dashboard. Framework-agnostic (vanilla Flutter friendly); Magic ships its own MagicHttpFacadeAdapter + MagicModelWatcher + MagicCacheWatcher via TelescopePlugin.registerHttpAdapter + registerWatcher extension points."
-version: 1.0.0-alpha.1
+version: 1.0.0-alpha.2
 homepage: https://telescope.fluttersdk.com
 repository: https://github.com/fluttersdk/telescope
 
