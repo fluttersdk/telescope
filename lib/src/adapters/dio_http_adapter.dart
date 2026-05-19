@@ -37,6 +37,13 @@ class DioHttpAdapter implements TelescopeHttpAdapter {
     // No-op in V1 stub.
   }
 
+  /// V1 stub adapter does not track in-flight requests (the Dio interceptor
+  /// wiring lives in consumer code). Explicit override is required because
+  /// Dart's `implements` clause does not inherit default method bodies from
+  /// the [TelescopeHttpAdapter] contract.
+  @override
+  int get pendingCount => 0;
+
   /// Convenience: programmatically record an HTTP request/response pair into
   /// TelescopeStore from any HTTP library wrapper (Dio, http, Chopper, raw).
   static void recordRequest({

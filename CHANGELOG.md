@@ -2,6 +2,77 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **`TelescopeStore.pendingHttpCount` getter** (Step 3.4). Sums
+  [TelescopeHttpAdapter.pendingCount] across every adapter passed to
+  [TelescopePlugin.registerHttpAdapter]. Returns 0 when no adapter is
+  registered AND when every registered adapter inherits the default
+  `pendingCount => 0`. Read-only sync getter, safe to call from poll loops;
+  consumed by `ext.dusk.wait_for_network_idle` to detect a network-idle
+  window before yielding the next agent action.
+- **`TelescopeHttpAdapter.pendingCount` optional method** (Step 3.4). New
+  abstract-contract method with a default body returning 0 ; existing
+  implementations (`DioHttpAdapter` ; explicit override added to stay
+  compatible with `implements`, magic's `MagicHttpFacadeAdapter` ; overrides
+  to return the live in-flight FIFO length) get the new surface additively.
+  Hosts that ship a third-party `TelescopeHttpAdapter` via `implements`
+  must add an explicit `int get pendingCount => 0;` override; `extends`
+  callers inherit the default body for free.
+- **`lib/src/internal/http_adapter_registry.dart`** (Step 3.4). Library-
+  internal mutable list that [TelescopePlugin.registerHttpAdapter] appends
+  to and [TelescopeStore.pendingHttpCount] iterates. Not exported from the
+  public barrel; kept off [TelescopeStore] itself to preserve the "one new
+  public symbol" constraint on the store.
+
+### Backward compat
+
+`TelescopeHttpAdapter`, `TelescopeWatcher`, `TelescopePlugin.install` /
+`registerHttpAdapter` / `registerWatcher` signatures, the 9-buffer
+`TelescopeStore` read/record/stream APIs, and the existing 9 MCP tool names
+all stay frozen. The new `pendingHttpCount` getter, the new
+`pendingCount` method on the adapter contract (with default body), and the
+library-internal adapter registry are pure additions; no migration
+required for existing watchers / adapters / consumers, except that
+third-party `TelescopeHttpAdapter implements ...` users must add an
+explicit `pendingCount` override (single line, default 0).
+
+---
+
+## [1.0.0-alpha.3] - 2026-05-19
+
+### Added
+
+- **`MagicQueryWatcher` + DB query capture**: subscribes to the magic-side `QueryExecuted` event dispatched by the database connector and records `QueryRecord` entries (sql, bindings, timeMs, connectionName) to the new `queries` ring buffer. Activates the long-pending DB observation surface promised in alpha-1.
+- **`MagicCacheWatcher` activated**: previously a buffer placeholder, the watcher now subscribes to five magic-side cache events (`CacheHit`, `CacheMiss`, `CachePut`, `CacheForget`, `CacheFlush`) via the `EventDispatcher`. Each dispatched event lands in the `magic_cache` buffer tagged with the corresponding operation (`hit` / `miss` / `put` / `forget` / `flush`).
+- **9-buffer `TelescopeStore`**: adds the `queries` buffer trio (Queue + StreamController + record/recent helpers). `clear()` includes it; capacity rule still 500 per buffer by default.
+- **2 new VM Service extensions**: `ext.telescope.queries`, `ext.telescope.caches`. Both follow the existing handler shape: parse `limit` / `offset` from params, return `ServiceExtensionResponse.result(jsonEncode(payload))`, registered idempotently.
+- **2 new MCP tools**: `telescope_queries`, `telescope_caches`. Contributed via `TelescopeArtisanProvider.mcpTools()` as `McpToolDescriptor` const instances, both with Claude Code canonical descriptions. Brings the MCP surface to 9 tools.
+- **3 new CLI commands**: `telescope:install`, `telescope:queries`, `telescope:caches`. The provider's `commands()` now returns 6 commands (install + tail + requests + queries + caches + clear).
+- **`telescope:install` one-shot bootstrap**: orchestrates `consumer:scaffold` + `plugin:install fluttersdk_telescope` + `lib/main.dart` injection. Detects Magic-stack apps via the `await Magic.init(` anchor and injects `TelescopePlugin.install()` BEFORE Magic.init; falls back to `runApp(` anchor for vanilla Flutter apps. Idempotent: skips `WidgetsFlutterBinding.ensureInitialized()` when already present.
+- **`bin/fluttersdk_telescope.dart` wrapper**: Flutter-free CLI entry point so the package's own commands run under `dart run fluttersdk_telescope ...` without dragging in `dart:ui`. Pairs with the new `executables: fluttersdk_telescope` pubspec entry.
+- **`lib/cli.dart`**: Flutter-free codegen barrel exposing `FluttersdkTelescopeArtisanProvider` typedef alias. Consumed by `lib/app/_plugins.g.dart` auto-discovery without pulling Flutter symbols into the pure-Dart artisan codegen path.
+- **`install.yaml` plugin manifest**: V1 manifest with empty publish list + a post-install bootstrap message. Required for `plugin:install fluttersdk_telescope` to be recognized by the artisan PluginInstaller.
+
+### Magic-side coordinated changes (require magic ^[1.0.0-alpha.14] or unreleased main)
+
+- `magic/lib/src/cache/events/cache_events.dart`: 5 new event classes (`CacheHit`, `CacheMiss`, `CachePut`, `CacheForget`, `CacheFlush`). Exported from `package:magic/magic.dart`.
+- `magic/lib/src/cache/cache_manager.dart`: `get` / `put` / `forget` / `flush` now dispatch the matching event through `EventDispatcher.instance` after the underlying store operation completes.
+- `magic/lib/src/cache/events/query_executed.dart` (existing): unchanged; `MagicQueryWatcher` subscribes to it.
+
+### Test coverage
+
+- Telescope: 307 tests green (was ~80 after alpha-2). New coverage spans `QueryRecord`, the 9-buffer store expansion, `MagicQueryWatcher`, the activated `MagicCacheWatcher`, the 2 new VM Service handlers (parseable envelope + seeded records + limit + empty payload, 4 each), the 2 new MCP tool descriptors, the 3 new CLI commands, and `TelescopeInstallCommand`'s Magic-stack vs vanilla anchor detection.
+- Magic: 1120 tests green (+6 from `test/cache/cache_manager_event_dispatch_test.dart`) covering all 5 cache events end-to-end through the `CacheManager` API.
+
+### Backward compat
+
+`TelescopeHttpAdapter`, `TelescopeWatcher`, `TelescopePlugin.install` / `registerHttpAdapter` / `registerWatcher`, `TelescopeStore.recordX` for the 8 existing buffers, and the existing 7 MCP tool names are all unchanged. The 2 new tools, 2 new extensions, 3 new commands, and 1 new buffer are pure additions. The `queries` buffer activates only when `MagicQueryWatcher` (or another producer) calls `TelescopeStore.recordQuery`.
+
+---
+
 ## [1.0.0-alpha.2] - 2026-05-19
 
 ### Added

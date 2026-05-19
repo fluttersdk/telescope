@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'adapters/http_adapter.dart';
 import 'extensions/register_telescope_extensions.dart';
+import 'internal/http_adapter_registry.dart';
 import 'watchers/log_watcher.dart';
 import 'watchers/watcher.dart';
 
@@ -20,8 +21,14 @@ class TelescopePlugin {
 
   /// Register a pluggable HTTP capture adapter (Dio, package:http, Chopper,
   /// Magic's Http facade). The adapter's install() is called immediately.
+  ///
+  /// Also pushes the adapter onto the library-internal [httpAdapterRegistry]
+  /// so [TelescopeStore.pendingHttpCount] can sum
+  /// [TelescopeHttpAdapter.pendingCount] across every registered adapter
+  /// without taking a new public API on [TelescopeStore].
   static void registerHttpAdapter(TelescopeHttpAdapter adapter) {
     _httpAdapters.add(adapter);
+    httpAdapterRegistry.add(adapter);
     adapter.install();
   }
 

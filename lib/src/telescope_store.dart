@@ -3,6 +3,7 @@ import 'dart:collection';
 
 import 'package:meta/meta.dart';
 
+import 'internal/http_adapter_registry.dart';
 import 'records/dump_record.dart';
 import 'records/event_record.dart';
 import 'records/exception_record.dart';
@@ -11,8 +12,9 @@ import 'records/http_request_record.dart';
 import 'records/log_record_entry.dart';
 import 'records/magic_cache_record.dart';
 import 'records/magic_model_record.dart';
+import 'records/query_record.dart';
 
-/// In-memory ring-buffer store for the 8 V1+alpha-2 watcher record types.
+/// In-memory ring-buffer store for the 9 V1+alpha-2 watcher record types.
 ///
 /// Default cap: 500 entries per buffer (configurable via [setCapacity]).
 /// Singleton accessed via static methods. Hot-restart resets the buffers
@@ -31,6 +33,7 @@ class TelescopeStore {
   static final Queue<EventRecord> _events = Queue<EventRecord>();
   static final Queue<GateRecord> _gates = Queue<GateRecord>();
   static final Queue<DumpRecord> _dumps = Queue<DumpRecord>();
+  static final Queue<QueryRecord> _queries = Queue<QueryRecord>();
 
   static final StreamController<HttpRequestRecord> _httpStream =
       StreamController<HttpRequestRecord>.broadcast();
@@ -48,6 +51,8 @@ class TelescopeStore {
       StreamController<GateRecord>.broadcast();
   static final StreamController<DumpRecord> _dumpStream =
       StreamController<DumpRecord>.broadcast();
+  static final StreamController<QueryRecord> _queryStream =
+      StreamController<QueryRecord>.broadcast();
 
   /// Set per-buffer capacity (default 500).
   static void setCapacity(int cap) => _cap = cap;
@@ -68,6 +73,7 @@ class TelescopeStore {
     _events.clear();
     _gates.clear();
     _dumps.clear();
+    _queries.clear();
   }
 
   static void recordHttp(HttpRequestRecord r) {
@@ -142,6 +148,15 @@ class TelescopeStore {
     _dumpStream.add(r);
   }
 
+  static void recordQuery(QueryRecord r) {
+    if (_paused) return;
+    _queries.addLast(r);
+    while (_queries.length > _cap) {
+      _queries.removeFirst();
+    }
+    _queryStream.add(r);
+  }
+
   static List<HttpRequestRecord> recentHttp({int? limit}) =>
       _recent(_http, limit);
   static List<LogRecordEntry> recentLogs({int? limit, String? minLevel}) {
@@ -161,6 +176,8 @@ class TelescopeStore {
       _recent(_events, limit);
   static List<GateRecord> recentGates({int? limit}) => _recent(_gates, limit);
   static List<DumpRecord> recentDumps({int? limit}) => _recent(_dumps, limit);
+  static List<QueryRecord> recentQueries({int? limit}) =>
+      _recent(_queries, limit);
 
   static List<T> _recent<T>(Queue<T> q, int? limit) => _trim(q.toList(), limit);
 
@@ -184,6 +201,25 @@ class TelescopeStore {
         order.indexOf(min.toLowerCase());
   }
 
+  /// Total number of HTTP requests currently in flight across every
+  /// registered [TelescopeHttpAdapter].
+  ///
+  /// Sums [TelescopeHttpAdapter.pendingCount] across the live adapter
+  /// registry populated by [TelescopePlugin.registerHttpAdapter]. Returns 0
+  /// when no adapter is registered OR when no registered adapter overrides
+  /// the default [TelescopeHttpAdapter.pendingCount] (default body returns 0).
+  ///
+  /// Read-only sync getter; safe to call from poll loops (no locks, no IO).
+  /// Consumed by `ext.dusk.wait_for_network_idle` to detect a network-idle
+  /// window before yielding the next agent action.
+  static int get pendingHttpCount {
+    var total = 0;
+    for (final adapter in httpAdapterRegistry) {
+      total += adapter.pendingCount;
+    }
+    return total;
+  }
+
   static Stream<HttpRequestRecord> get onHttpRecord => _httpStream.stream;
   static Stream<LogRecordEntry> get onLogRecord => _logStream.stream;
   static Stream<ExceptionRecord> get onExceptionRecord =>
@@ -193,6 +229,7 @@ class TelescopeStore {
   static Stream<EventRecord> get onEventRecord => _eventStream.stream;
   static Stream<GateRecord> get onGateRecord => _gateStream.stream;
   static Stream<DumpRecord> get onDumpRecord => _dumpStream.stream;
+  static Stream<QueryRecord> get onQueryRecord => _queryStream.stream;
 
   /// Test-only reset.
   @visibleForTesting
@@ -200,5 +237,9 @@ class TelescopeStore {
     clear();
     _paused = false;
     _cap = 500;
+    // The HTTP-adapter registry is a singleton list owned by
+    // `internal/http_adapter_registry.dart`; clearing it here keeps test
+    // isolation aligned with the existing buffer reset.
+    httpAdapterRegistry.clear();
   }
 }

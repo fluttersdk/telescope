@@ -8,21 +8,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Flutter SDK package. Requires the Flutter runtime (widgets, foundation, dart:ui) unlike the pure-Dart artisan
 framework. Dart 3.4+ / Flutter 3.22+. Plugin of `fluttersdk_artisan`: contributes `TelescopeArtisanProvider` which
-surfaces 3 CLI commands (`telescope:tail`, `telescope:requests`, `telescope:clear`) and 7 MCP tools backed by
-`ext.telescope.*` VM Service extensions.
+surfaces 6 CLI commands (`telescope:install`, `telescope:tail`, `telescope:requests`, `telescope:queries`,
+`telescope:caches`, `telescope:clear`) and 9 MCP tools backed by `ext.telescope.*` VM Service extensions.
 
 Deps: `fluttersdk_artisan` (path), `logging: ^1.2.0`, `meta: ^1.16.0`. Dev deps: `flutter_test`, `flutter_lints`,
 `magic` (path, dev-only for watcher integration tests). This package is debug-only at the consumer call site: the
 consumer wraps `TelescopePlugin.install()` inside `if (kDebugMode)` so release builds tree-shake the entire subsystem.
 
+The package ships its own Flutter-free CLI entry point (`bin/fluttersdk_telescope.dart` → `executables:
+fluttersdk_telescope`) so `dart run fluttersdk_telescope:mcp`-style invocations work without dragging `dart:ui`
+into a pure-Dart context, and a `lib/cli.dart` codegen barrel (typedef `FluttersdkTelescopeArtisanProvider`)
+consumed by consumer-side `lib/app/_plugins.g.dart` auto-discovery. An `install.yaml` manifest at the package root
+makes `plugin:install fluttersdk_telescope` work end-to-end via the artisan PluginInstaller.
+
 ## Commands
 
 | Command | When |
 |---|---|
-| `flutter test` | Run all tests (baseline 33+ green after alpha-2). |
+| `flutter test` | Run all tests (baseline 307+ green after alpha-3). |
 | `dart format lib/ test/` | Format. Must produce no diff. |
 | `dart analyze` | Static analysis. Zero issues required across `lib/` and `test/`. |
 | `dart pub get` | Resolve deps after pubspec.yaml changes. |
+| `dart run fluttersdk_telescope <cmd>` | Run a `telescope:*` command standalone (Flutter-free CLI wrapper at `bin/fluttersdk_telescope.dart`). |
 
 ## Architecture
 
@@ -32,17 +39,20 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 |---|---|
 | `watchers/` | `TelescopeWatcher` abstract contract + concrete impls (`LogWatcher`, `ExceptionWatcher`, `DumpWatcher`). |
 | `adapters/` | `TelescopeHttpAdapter` abstract contract + `DioHttpAdapter` concrete impl. |
-| `records/` | Immutable record types: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`. |
-| `extensions/` | `registerAllTelescopeExtensions()` aggregator + per-concern VM Service handlers. |
-| `commands/` | `TelescopeTailCommand`, `TelescopeRequestsCommand`, `TelescopeClearCommand`. |
-| `telescope_store.dart` | 8-buffer ring store (singleton). `Queue<T>` per buffer + broadcast `StreamController<T>` per buffer. |
+| `records/` | Immutable record types: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord`. |
+| `extensions/` | `registerAllTelescopeExtensions()` aggregator + per-concern VM Service handlers (incl. `queriesHandler`, `cachesHandler`). |
+| `commands/` | `TelescopeInstallCommand`, `TelescopeTailCommand`, `TelescopeRequestsCommand`, `TelescopeQueriesCommand`, `TelescopeCachesCommand`, `TelescopeClearCommand`. |
+| `telescope_store.dart` | 9-buffer ring store (singleton). `Queue<T>` per buffer + broadcast `StreamController<T>` per buffer. |
 | `telescope_plugin.dart` | `TelescopePlugin.install()` entry + `registerHttpAdapter()` + `registerWatcher()` extension points. |
-| `telescope_artisan_provider.dart` | `TelescopeArtisanProvider extends ArtisanServiceProvider`: 3 commands + 7 MCP tool descriptors. |
+| `telescope_artisan_provider.dart` | `TelescopeArtisanProvider extends ArtisanServiceProvider`: 6 commands + 9 MCP tool descriptors. |
+| `bin/fluttersdk_telescope.dart` | Flutter-free CLI wrapper (no `dart:ui` import) — runs the provider's commands standalone via `dart run fluttersdk_telescope`. |
+| `lib/cli.dart` | Flutter-free codegen barrel with `FluttersdkTelescopeArtisanProvider` typedef alias; consumed by consumer-side `lib/app/_plugins.g.dart` auto-discovery. |
+| `install.yaml` | V1 plugin manifest (empty publish list + post-install bootstrap message) required by `plugin:install fluttersdk_telescope`. |
 
 ### Three public contracts
 
 - `TelescopeWatcher`: `name` getter, `install()`, `uninstall()`. Magic ships `MagicModelWatcher`, `MagicCacheWatcher`,
-  `MagicEventWatcher`, `MagicGateWatcher` via this contract.
+  `MagicEventWatcher`, `MagicGateWatcher`, `MagicQueryWatcher` via this contract.
 - `TelescopeHttpAdapter`: same 3-method shape. Magic ships `MagicHttpFacadeAdapter` via this contract.
 - `McpToolDescriptor`: const-constructible; shape owned by `fluttersdk_artisan`. Descriptions follow Claude Code
   canonical format: imperative opening sentence + context paragraph + `Usage:` bullet list.
@@ -50,9 +60,9 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 ### VM Service surface
 
 `ext.telescope.requests`, `ext.telescope.console`, `ext.telescope.exceptions`, `ext.telescope.events`,
-`ext.telescope.gates`, `ext.telescope.dumps`, `ext.telescope.clear`, `ext.telescope.pause`,
-`ext.telescope.resume`. Every registration goes through `registerExtensionIdempotent` (from `fluttersdk_artisan`)
-for hot-restart safety.
+`ext.telescope.gates`, `ext.telescope.dumps`, `ext.telescope.queries`, `ext.telescope.caches`,
+`ext.telescope.clear`, `ext.telescope.pause`, `ext.telescope.resume`. Every registration goes through
+`registerExtensionIdempotent` (from `fluttersdk_artisan`) for hot-restart safety.
 
 ## Conventions
 
@@ -78,13 +88,19 @@ for hot-restart safety.
 
 - `TelescopeHttpAdapter` and `TelescopeWatcher` abstract contract signatures (`name`, `install`, `uninstall`) are
   frozen. Magic-side glue depends on them. Any change requires a coordinated bump across both repos.
+- `TelescopeHttpAdapter.pendingCount` (added Step 3.4) is an ADDITIVE optional method with a default body
+  returning 0 ; the three frozen signatures above stay frozen. Implementations using `extends TelescopeHttpAdapter`
+  inherit the default; implementations using `implements TelescopeHttpAdapter` must add an explicit
+  `int get pendingCount => 0;` override (one line, default behavior preserved).
 - `TelescopePlugin.install()`, `.registerHttpAdapter()`, `.registerWatcher()` signatures are frozen for the same
   reason.
 - `TelescopeStore` public method signatures (`recordHttp`, `recordLog`, `recordException`, `recordMagicModel`,
-  `recordMagicCache` and their `recent*` / `on*Record` counterparts) are frozen; magic-side calls them directly.
-- No CLI command additions for events, gates, or dumps in alpha-2. MCP-only access for these three watchers is
-  intentional; CLI parity is V1.x backlog.
-- No `install.yaml` manifest (zero-config approach preserved; manifest support is V1.x backlog).
+  `recordMagicCache`, `recordEvent`, `recordGate`, `recordDump`, `recordQuery` and their `recent*` / `on*Record`
+  counterparts) are frozen; magic-side calls them directly.
+- No CLI command additions for events, gates, or dumps in alpha-3 either. MCP-only access for these three watchers
+  is intentional; CLI parity remains V1.x backlog. (DB queries + caches DO have CLI commands as of alpha-3.)
+- `install.yaml` manifest at the package root is required for `plugin:install fluttersdk_telescope`. Do not delete
+  it; the V1 manifest carries the post-install bootstrap message + the `executables:` mapping anchor.
 - No new production dependencies beyond `fluttersdk_artisan`, `logging`, and `meta`. Example apps may add their own
   demo deps (Dio for vanilla, `magic` for `example_magic`).
 - `DumpWatcher` must not capture in release builds. The `kDebugMode` guard at install time is load-bearing.

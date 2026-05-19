@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:fluttersdk_telescope/src/adapters/http_adapter.dart';
+import 'package:fluttersdk_telescope/src/internal/http_adapter_registry.dart';
 import 'package:fluttersdk_telescope/src/records/dump_record.dart';
 import 'package:fluttersdk_telescope/src/records/event_record.dart';
 import 'package:fluttersdk_telescope/src/records/exception_record.dart';
@@ -651,6 +653,52 @@ void main() {
       expect(TelescopeStore.recentLogs(), hasLength(1));
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Step 3.4 — pendingHttpCount getter.
+  // ---------------------------------------------------------------------------
+
+  group('TelescopeStore.pendingHttpCount', () {
+    test('returns 0 when no HTTP adapter is registered', () {
+      // resetForTesting() in the outer setUp should have cleared the adapter
+      // registry; the getter falls back to 0 for the empty-registry path.
+      expect(TelescopeStore.pendingHttpCount, equals(0));
+    });
+
+    test('returns 0 when the registered adapter does not override pendingCount',
+        () {
+      httpAdapterRegistry.add(_DefaultHttpAdapter());
+      expect(TelescopeStore.pendingHttpCount, equals(0));
+    });
+
+    test('delegates to the registered adapter\'s pendingCount when overridden',
+        () {
+      final adapter = _CountingHttpAdapter(7);
+      httpAdapterRegistry.add(adapter);
+
+      expect(TelescopeStore.pendingHttpCount, equals(7));
+
+      adapter.pendingCount = 12;
+      expect(TelescopeStore.pendingHttpCount, equals(12));
+    });
+
+    test('sums pendingCount across multiple registered adapters', () {
+      httpAdapterRegistry.add(_CountingHttpAdapter(3));
+      httpAdapterRegistry.add(_CountingHttpAdapter(5));
+      httpAdapterRegistry.add(_DefaultHttpAdapter());
+
+      // 3 + 5 + 0 (default adapter contributes 0).
+      expect(TelescopeStore.pendingHttpCount, equals(8));
+    });
+
+    test('resetForTesting() clears the adapter registry', () {
+      httpAdapterRegistry.add(_CountingHttpAdapter(9));
+      expect(TelescopeStore.pendingHttpCount, equals(9));
+
+      TelescopeStore.resetForTesting();
+      expect(TelescopeStore.pendingHttpCount, equals(0));
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -711,3 +759,45 @@ DumpRecord _dump(String message) => DumpRecord(
       message: message,
       time: DateTime(2026, 1, 1),
     );
+
+// ---------------------------------------------------------------------------
+// Step 3.4 — pendingHttpCount delegate
+// ---------------------------------------------------------------------------
+
+/// Fake adapter that overrides `pendingCount` so the delegate path can be
+/// exercised without spinning up Magic's network interceptor.
+class _CountingHttpAdapter extends TelescopeHttpAdapter {
+  _CountingHttpAdapter(this._count);
+
+  int _count;
+
+  @override
+  String get name => 'counting';
+
+  @override
+  void install() {}
+
+  @override
+  void uninstall() {}
+
+  @override
+  int get pendingCount => _count;
+
+  set pendingCount(int value) => _count = value;
+}
+
+/// Adapter that does NOT override `pendingCount`, exercising the abstract
+/// contract's default value (= 0).
+class _DefaultHttpAdapter extends TelescopeHttpAdapter {
+  @override
+  String get name => 'default';
+
+  @override
+  void install() {}
+
+  @override
+  void uninstall() {}
+
+  // Intentionally does NOT override `pendingCount` — relies on the default
+  // body declared on the abstract contract (returns 0).
+}
