@@ -61,7 +61,7 @@ Per-buffer Queue<T> (O(1) ends) + StreamController<T>.broadcast() for live tail.
 
 ### Documentation
 
-- `README.md` two-path Quick Start (one-shot `dart run :artisan telescope:install`; manual wiring for non-artisan consumers).
+- `README.md` two-path Quick Start (one-shot self-bootstrap via `dart run fluttersdk_telescope telescope:install`; manual wiring for consumers who prefer to drive the artisan dispatcher by hand). After install, the consumer's `./bin/fsa` native AOT launcher is the recommended entry point for every subsequent telescope command.
 - `doc/` tree: `getting-started/`, `watchers/`, `mcp/`.
 - `llms.txt` at repo root per llmstxt.org spec.
 - `skills/fluttersdk-telescope/` LLM-agent skill (SKILL.md + 2 references).

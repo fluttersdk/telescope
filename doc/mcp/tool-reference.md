@@ -5,9 +5,9 @@ Catalog of every MCP tool contributed by `fluttersdk_telescope` via
 through `ext.telescope.*` VM Service extensions registered inside the running Flutter app by
 `registerAllTelescopeExtensions()`.
 
-**Requires a running app.** Every telescope tool dispatches via the VM Service. Call
-`artisan_start` first (or use `./bin/fsa start`) and confirm `artisan_status` shows a live
-`vmServiceUri` before invoking these tools.
+**Requires a running app.** Every telescope tool dispatches via the VM Service. Boot the
+app via the artisan fast-cli (`./bin/fsa start`) or the MCP equivalent (`artisan_start`)
+and confirm `artisan_status` shows a live `vmServiceUri` before invoking these tools.
 
 ---
 

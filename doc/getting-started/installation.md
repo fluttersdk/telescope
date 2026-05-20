@@ -6,8 +6,9 @@
 - [Wire the Artisan provider](#wire-the-artisan-provider)
 - [Verify installation](#verify-installation)
 
-`fluttersdk_telescope` requires a Flutter project with `fluttersdk_artisan` already wired.
-If artisan is not yet set up, run `dart run fluttersdk_artisan install` first.
+`fluttersdk_telescope` works from a fresh Flutter project. The recommended install path
+uses telescope's own bootstrap entry point (`dart run fluttersdk_telescope telescope:install`)
+which carries the artisan substrate, so no prior `fluttersdk_artisan` setup is required.
 
 <a name="requirements"></a>
 ## Requirements
@@ -16,22 +17,23 @@ If artisan is not yet set up, run `dart run fluttersdk_artisan install` first.
 |:-----------|:----------------|:------|
 | Dart SDK | `>= 3.4.0` | |
 | Flutter SDK | `>= 3.22.0` | VM Service extensions require the Flutter runtime. |
-| fluttersdk_artisan | `^0.0.1` | Provides the `telescope:install` command and MCP server. |
+| fluttersdk_artisan | `^0.0.2` | Pulled in transitively by telescope; no manual setup needed for the install path. |
 | Magic stack | optional | Enables 6 additional Magic-specific watchers. |
 
 <a name="option-a-one-shot-install"></a>
-## Option A: one-shot install via artisan (recommended)
+## Option A: one-shot self-bootstrap install (recommended)
 
-Once the consumer has `fluttersdk_artisan` wired (`bin/artisan.dart` present), let
-Telescope install itself end-to-end with a single command:
+Add `fluttersdk_telescope` to `pubspec.yaml`, run `dart pub get`, then bootstrap via
+telescope's own CLI entry point. The standalone binary carries the artisan substrate, so
+this works from a completely fresh consumer with no prior `fluttersdk_artisan` wiring:
 
 ```bash
-dart run :artisan telescope:install
+dart run fluttersdk_telescope telescope:install
 ```
 
 The command performs three operations in order:
 
-1. Scaffolds the consumer artisan harness (`bin/artisan.dart`, `lib/app/_plugins.g.dart`)
+1. Scaffolds the consumer artisan harness (`bin/dispatcher.dart`, `lib/app/_plugins.g.dart`)
    if it is missing. This is a no-op when the harness is already present.
 2. Runs `plugin:install fluttersdk_telescope`, which registers `TelescopeArtisanProvider`
    in `.artisan/plugins.json` and refreshes the codegen barrel.
@@ -40,6 +42,20 @@ The command performs three operations in order:
    `kDebugMode` guard automatically.
 
 The command is idempotent. Re-running it when the files are already patched is safe.
+
+### After install: prefer the artisan fast-cli
+
+The artisan scaffold ships a precompiled launcher at `./bin/fsa` (native AOT, ~110ms warm
+startup). For everyday telescope work, use it instead of `dart run`:
+
+```bash
+./bin/fsa telescope:tail
+./bin/fsa telescope:requests
+./bin/fsa telescope:clear
+```
+
+`dart run fluttersdk_telescope <cmd>` and `dart run fluttersdk_artisan <cmd>` keep working
+as ~3-second cold-start fallbacks; they are useful in CI or before the AOT bundle is built.
 
 <a name="option-b-manual-wiring"></a>
 ## Option B: manual wiring
@@ -112,24 +128,28 @@ if (kDebugMode) {
 <a name="wire-the-artisan-provider"></a>
 ## Wire the Artisan provider
 
-Register `TelescopeArtisanProvider` in `bin/artisan.dart` to surface the 9 `telescope_*`
-MCP tools and the 6 CLI commands:
+If you used Option A (`telescope:install`), the provider registration is written
+automatically: `plugin:install fluttersdk_telescope` adds `FluttersdkTelescopeArtisanProvider`
+to `lib/app/_plugins.g.dart`, which the scaffolded `bin/dispatcher.dart` reads via
+`plugins.autoDiscoveredProviders()`. No manual edit is required.
+
+If you used Option B (manual wiring), import the provider in your `bin/dispatcher.dart`
+yourself:
 
 ```dart
-import 'package:fluttersdk_telescope/telescope.dart' show TelescopeArtisanProvider;
+import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:fluttersdk_telescope/cli.dart' show FluttersdkTelescopeArtisanProvider;
 
-exit(await runArtisan(
-  args,
-  baseProviders: [
-    MagicArtisanProvider(),
-    TelescopeArtisanProvider(),
-    ...plugins.autoDiscoveredProviders(),
-  ],
-));
+Future<void> main(List<String> args) async {
+  exit(await runArtisan(
+    args,
+    baseProviders: [
+      FluttersdkTelescopeArtisanProvider(),
+      // ...other providers (DuskArtisanProvider, etc.)
+    ],
+  ));
+}
 ```
-
-If you used Option A (`telescope:install`), the provider registration is written
-automatically via `plugin:install`; you do not need to edit `bin/artisan.dart` by hand.
 
 <a name="verify-installation"></a>
 ## Verify installation
@@ -137,18 +157,20 @@ automatically via `plugin:install`; you do not need to edit `bin/artisan.dart` b
 Start your Flutter app and confirm Telescope is active by tailing the log buffer:
 
 ```bash
-dart run :artisan telescope:tail
+./bin/fsa telescope:tail
 ```
 
 Expected output on a running app shows the most recent log records from the ring buffer.
 If you see `Error: no running app found`, the artisan state file is missing: run
-`dart run :artisan start` first, then retry `telescope:tail`.
+`./bin/fsa start` first, then retry `telescope:tail`.
 
-To confirm all 9 MCP tools are registered, list the artisan command catalog:
+To confirm all 6 CLI commands are registered, list the artisan command catalog:
 
 ```bash
-dart run :artisan list
+./bin/fsa list
 ```
 
-The output includes a `telescope` namespace with `telescope:install`, `telescope:tail`,
-`telescope:requests`, `telescope:queries`, `telescope:caches`, and `telescope:clear`.
+The output includes the `telescope:` namespace with `telescope:install`, `telescope:tail`,
+`telescope:requests`, `telescope:queries`, `telescope:caches`, and `telescope:clear`. If
+the fast-cli is missing for any reason, the same commands run via `dart run fluttersdk_telescope list`
+or `dart run fluttersdk_artisan list`.

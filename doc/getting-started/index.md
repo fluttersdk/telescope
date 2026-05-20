@@ -15,10 +15,12 @@ Service extensions at startup, captures every HTTP request, log line, exception,
 DB query, and Magic-framework lifecycle event into ring buffers, then surfaces those buffers through
 CLI commands and MCP tools without ever modifying app behavior.
 
-One `telescope:install` command wires everything end-to-end:
+One `telescope:install` command wires everything end-to-end. Telescope ships its own
+bootstrap CLI entry point so the command works from a fresh consumer without any prior
+`fluttersdk_artisan` wiring:
 
 ```bash
-dart run :artisan telescope:install
+dart run fluttersdk_telescope telescope:install
 ```
 
 The command scaffolds the consumer artisan harness if it is missing, runs
@@ -26,13 +28,16 @@ The command scaffolds the consumer artisan harness if it is missing, runs
 `TelescopePlugin.install()` runs at startup inside a `kDebugMode` guard. Release builds
 tree-shake the entire subsystem; there is zero production overhead.
 
+After install, the artisan native AOT launcher at `./bin/fsa` gives ~110ms warm startup
+for every subsequent telescope command (`./bin/fsa telescope:tail`, etc.).
+
 ## Requirements
 
 | Dependency | Minimum Version | Notes |
 |:-----------|:----------------|:------|
 | Dart SDK | `>= 3.4.0` | Required. |
 | Flutter SDK | `>= 3.22.0` | Required. Telescope needs the Flutter runtime for VM Service extensions. |
-| fluttersdk_artisan | `^0.0.1` | Required for the `telescope:install` command and MCP tools. |
+| fluttersdk_artisan | `^0.0.2` | Pulled in transitively by telescope; the install command and MCP tools work without prior setup. |
 | Magic stack | optional | Enables 6 additional watchers: HTTP facade, models, cache, events, gates, queries. |
 
 Telescope is a debug-only package. The `kDebugMode` gate at the consumer install site is

@@ -4,19 +4,21 @@ A 3-step walkthrough taking a fresh Flutter project from zero to a working Teles
 with runtime buffers populated and the first MCP tool call returning live data.
 
 Prerequisites: Flutter SDK 3.22+, Dart SDK 3.4+, a Flutter project with a valid
-`pubspec.yaml`, and `flutter pub get` already run so `.dart_tool/package_config.json` is
-present. `fluttersdk_artisan` must be installed (`dart run fluttersdk_artisan install`
-creates `bin/artisan.dart` if it is missing).
+`pubspec.yaml` listing `fluttersdk_telescope` under `dependencies`, and `flutter pub get`
+already run so `.dart_tool/package_config.json` is present. `fluttersdk_artisan` is pulled
+in transitively by telescope; you do not need to install it separately. The
+`telescope:install` command scaffolds `bin/dispatcher.dart` for you on first run.
 
 ---
 
 ### 1. Install Telescope
 
-Run the one-shot install command. It scaffolds artisan if needed, registers the plugin,
-and patches `lib/main.dart` with the `kDebugMode`-guarded install call:
+Run the one-shot install command through telescope's own bootstrap entry point. It
+scaffolds the artisan harness if needed, registers the plugin, and patches `lib/main.dart`
+with the `kDebugMode`-guarded install call:
 
 ```bash
-dart run :artisan telescope:install
+dart run fluttersdk_telescope telescope:install
 ```
 
 The command outputs a summary of every file it touched. For a fresh project the summary
@@ -33,15 +35,17 @@ On a Magic-stack app, `MagicTelescopeIntegration.install()` is also injected aft
 `Magic.init()` so all 9 watchers activate automatically. On a vanilla Flutter app only
 the core watchers (`LogWatcher`, plus any you opt into manually) are wired.
 
-Verify the provider registered correctly:
+Verify the provider registered correctly. From now on, the artisan fast-cli at `./bin/fsa`
+(native AOT, ~110ms warm) is the recommended entry point for every subsequent command:
 
 ```bash
-dart run :artisan list
+./bin/fsa list
 ```
 
-You should see the `telescope` namespace with 6 commands: `telescope:install`,
+You should see the `telescope:` namespace with 6 commands: `telescope:install`,
 `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches`,
-`telescope:clear`.
+`telescope:clear`. The same surface is also reachable via the ~3s cold-start fallbacks
+`dart run fluttersdk_telescope list` and `dart run fluttersdk_artisan list`.
 
 ---
 
@@ -51,7 +55,7 @@ Boot the Flutter app via artisan so the VM Service URI is recorded to the state 
 Artisan resolves the running instance from this file for every subsequent CLI and MCP call.
 
 ```bash
-dart run :artisan start --device=chrome
+./bin/fsa start --device=chrome
 ```
 
 The command scrapes the VM Service URI from `flutter run` output, normalizes it to a
@@ -78,11 +82,12 @@ debugPrint('quickstart test dump');
 ### 3. Query the buffers from Claude Code (MCP)
 
 Start the artisan MCP server. When your project has `.mcp.json` wired with
-`dart run :artisan mcp:serve` as the entry point, Claude Code launches the server
-automatically on attach. To start it manually:
+`dart run fluttersdk_artisan:mcp` as the entry point (written by
+`fluttersdk_artisan mcp:install`), Claude Code launches the server automatically on attach.
+To start it manually:
 
 ```bash
-dart run :artisan mcp:serve
+./bin/fsa mcp:serve
 ```
 
 Inside a Claude Code session, the 9 `telescope_*` tools are now available. A typical

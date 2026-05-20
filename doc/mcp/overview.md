@@ -41,7 +41,7 @@ no VM Service connection. Examples: `artisan_start`, `artisan_stop`, `artisan_st
 
 **Plugin tools** (`telescope_*` prefix, `dusk_*` prefix, etc.) are contributed by packages that
 extend `ArtisanServiceProvider`. They surface in the MCP catalog **only when** the plugin's provider
-is registered in the consumer's `bin/artisan.dart` and the MCP server is (re)started. Plugin tools
+is registered in the consumer's `bin/dispatcher.dart` (auto-wired by `telescope:install`) and the MCP server is (re)started. Plugin tools
 always dispatch via the VM Service and therefore require a running Flutter app.
 
 `TelescopeArtisanProvider` contributes the `fluttersdk_telescope` plugin tools. Its `providerName`

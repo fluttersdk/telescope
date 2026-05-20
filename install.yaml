@@ -3,8 +3,8 @@
 # Telescope is a passive observability plugin. Install registers
 # TelescopeArtisanProvider into the consumer's lib/app/_plugins.g.dart codegen
 # barrel (via the artisan manifest installer's _registerArtisanProvider step)
-# so the 6 telescope CLI commands + 9 telescope_* MCP tools surface in the
-# consumer's `dart run artisan` and `dart run fluttersdk_artisan:mcp` outputs.
+# so the 6 telescope CLI commands + 9 telescope_* MCP tools surface through
+# the consumer's `./bin/fsa` fast-cli and `dart run fluttersdk_artisan:mcp` outputs.
 #
 # No stub files are published: telescope captures via runtime hooks, not
 # scaffolded code. The consumer wires the runtime install in their
@@ -33,10 +33,13 @@ post_install:
        AFTER Magic.init() to wire MagicHttpFacadeAdapter +
        MagicModelWatcher + MagicEventWatcher + MagicGateWatcher.
 
-    3. Verify the CLI:
+    3. Verify the CLI (three equivalent entry points, fastest first):
 
-         dart run artisan list             # consumer wrapper: lists artisan + plugin commands incl. telescope:*
-         dart run fluttersdk_telescope list # telescope's own wrapper: same surface, namespaced entry point
+         ./bin/fsa list                       # consumer fast-cli (native AOT, ~110ms warm)
+         dart run fluttersdk_artisan list     # consumer dispatcher fallback (~3s cold)
+         dart run fluttersdk_telescope list   # telescope's own bootstrap entry (~3s cold, useful pre-install)
+
+       All three include the `telescope:` namespace (install, tail, requests, queries, caches, clear).
 
     4. Verify the MCP surface:
 
