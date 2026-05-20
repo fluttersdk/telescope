@@ -20,10 +20,14 @@ site: the consumer wraps `TelescopePlugin.install()` inside `if (kDebugMode)` so
 entire subsystem.
 
 The package ships its own Flutter-free CLI entry point (`bin/fluttersdk_telescope.dart` -> `executables:
-fluttersdk_telescope`) so `dart run fluttersdk_telescope <cmd>` invocations work without dragging `dart:ui` into a
-pure-Dart context, and a `lib/cli.dart` codegen barrel (typedef `FluttersdkTelescopeArtisanProvider`) consumed by
-consumer-side `lib/app/_plugins.g.dart` auto-discovery. An `install.yaml` manifest at the package root makes
-`plugin:install fluttersdk_telescope` work end-to-end via the artisan PluginInstaller.
+fluttersdk_telescope`) so `dart run fluttersdk_telescope <cmd>` invocations work without dragging `dart:ui` into
+a pure-Dart context. This bin is the canonical install bootstrap: `dart run fluttersdk_telescope telescope:install`
+works from a fresh consumer (no prior artisan wiring required) because the bin loads `TelescopeArtisanProvider`
+into `runArtisan` directly. After install, the consumer's `./bin/fsa` (native AOT, ~110ms warm) is the recommended
+entry point for every subsequent telescope command. A `lib/cli.dart` codegen barrel (typedef
+`FluttersdkTelescopeArtisanProvider`) is consumed by consumer-side `lib/app/_plugins.g.dart` auto-discovery. An
+`install.yaml` manifest at the package root makes `plugin:install fluttersdk_telescope` work end-to-end via the
+artisan PluginInstaller.
 
 ## Commands
 

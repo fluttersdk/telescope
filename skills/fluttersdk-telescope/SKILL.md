@@ -21,8 +21,12 @@ Release builds tree-shake the entire subsystem (dart2js + dart2native AOT).
 ## 1. Core Laws
 
 1. **Plugin of fluttersdk_artisan.** `TelescopeArtisanProvider` registers 6 CLI commands and 9 MCP tools with the
-   artisan dispatcher. The consumer's `bin/dispatcher.dart` must call
-   `registry.registerProvider(TelescopeArtisanProvider())` for the tools to surface.
+   artisan dispatcher. The canonical bootstrap is `dart run fluttersdk_telescope telescope:install` (telescope's
+   own bin carries the artisan substrate, so it works from a fresh consumer without prior artisan wiring). The
+   command scaffolds `bin/dispatcher.dart`, runs `plugin:install fluttersdk_telescope` (which writes
+   `FluttersdkTelescopeArtisanProvider` into `lib/app/_plugins.g.dart`), and patches `lib/main.dart`. After
+   install, prefer the consumer's `./bin/fsa <cmd>` (native AOT, ~110ms warm) over the slower
+   `dart run fluttersdk_telescope <cmd>` (~3s cold) for everyday calls.
 2. **Three entry points.** `TelescopePlugin.install()` starts the default stack (LogWatcher + VM extensions).
    `TelescopePlugin.registerHttpAdapter(adapter)` adds HTTP capture. `TelescopePlugin.registerWatcher(watcher)`
    adds any additional watcher. Both registration methods call `install()` on the argument immediately.
