@@ -1,8 +1,19 @@
 name: fluttersdk_telescope
-description: "Passive inspector for Flutter apps. HTTP capture (Dio adapter) + log sink (package:logging) + exception capture + in-app Flutter overlay dashboard. Framework-agnostic (vanilla Flutter friendly); Magic ships its own MagicHttpFacadeAdapter + MagicModelWatcher + MagicCacheWatcher via TelescopePlugin.registerHttpAdapter + registerWatcher extension points."
-version: 1.0.0-alpha.2
+description: "Passive runtime inspector for Flutter apps. HTTP, log, exception, debugPrint, DB query, and Magic model/cache/event/gate capture, surfaced over VM Service extensions to CLI and MCP tools."
+version: 0.0.1
 homepage: https://telescope.fluttersdk.com
 repository: https://github.com/fluttersdk/telescope
+issue_tracker: https://github.com/fluttersdk/telescope/issues
+documentation: https://fluttersdk.com/telescope
+
+# pub.dev search topics (max 5, lowercase + hyphens, regex ^[a-z][a-z0-9-]{0,31}$).
+# These drive tag-based discovery on https://pub.dev/packages?q=topic%3A<topic>.
+topics:
+  - flutter
+  - inspector
+  - debugging
+  - mcp-server
+  - observability
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -11,8 +22,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  fluttersdk_artisan:
-    path: ../fluttersdk_artisan
+  fluttersdk_artisan: ^0.0.1
   logging: ^1.2.0
   meta: ^1.16.0
 
@@ -26,23 +36,5 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  # Path dep (dev-only) for the Magic integration watcher tests under
-  # test/src/magic/. Magic ships MagicEventWatcher / MagicGateWatcher /
-  # MagicModelWatcher / MagicCacheWatcher / MagicHttpFacadeAdapter on top
-  # of telescope's TelescopePlugin extension points; the tests exercise
-  # those watchers via magic's EventDispatcher and TelescopeStore. Not a
-  # production dep — telescope stays framework-agnostic at runtime.
-  magic:
-    path: ../magic
-
-# Magic resolves fluttersdk_artisan via hosted constraint; mirror its
-# path override so the path-resolved `magic` dev_dep above unifies with
-# our own path dep on the same package. Required because magic ships
-# `dependency_overrides:` for the same packages in its own pubspec.
-dependency_overrides:
-  fluttersdk_artisan:
-    path: ../fluttersdk_artisan
-  fluttersdk_dusk:
-    path: ../fluttersdk_dusk
-
-publish_to: none
+  # magic dev-dep for Magic integration tests under test/src/magic/; tagged @Tags(['magic']) and excluded from default flutter test runs.
+  magic: ^1.0.0

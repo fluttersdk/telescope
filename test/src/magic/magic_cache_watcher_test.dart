@@ -1,3 +1,6 @@
+@Tags(['magic'])
+library;
+
 // flutter_test re-exports its own `EventDispatcher` (for pointer events)
 // via test_pointer.dart; hide it so the magic-side dispatcher resolves
 // unambiguously below.
