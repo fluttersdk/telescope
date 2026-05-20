@@ -71,8 +71,7 @@ The command scaffolds the consumer artisan harness if it's missing, runs `plugin
 ```yaml
 # pubspec.yaml
 dependencies:
-  fluttersdk_telescope:
-    path: ../path/to/fluttersdk_telescope
+  fluttersdk_telescope: ^0.0.1
 ```
 
 #### 2. Install in `main.dart`

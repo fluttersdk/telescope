@@ -22,14 +22,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  fluttersdk_artisan: ^0.0.1
+  fluttersdk_artisan: ^0.0.2
   logging: ^1.2.0
   meta: ^1.16.0
 
 executables:
   # `dart run fluttersdk_telescope <cmd>` ; telescope-flavoured artisan wrapper.
-  # Proxies the full artisan CLI surface AND surfaces the 3 telescope CLI
-  # commands + 7 telescope_* MCP tools via TelescopeArtisanProvider.
+  # Proxies the full artisan CLI surface AND surfaces the 6 telescope CLI
+  # commands + 9 telescope_* MCP tools via TelescopeArtisanProvider.
   fluttersdk_telescope: fluttersdk_telescope
 
 dev_dependencies:
@@ -37,4 +37,4 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   # magic dev-dep for Magic integration tests under test/src/magic/; tagged @Tags(['magic']) and excluded from default flutter test runs.
-  magic: ^1.0.0
+  magic: ^1.0.0-alpha

@@ -3,7 +3,7 @@
 # Telescope is a passive observability plugin. Install registers
 # TelescopeArtisanProvider into the consumer's lib/app/_plugins.g.dart codegen
 # barrel (via the artisan manifest installer's _registerArtisanProvider step)
-# so the 3 telescope CLI commands + 7 telescope_* MCP tools surface in the
+# so the 6 telescope CLI commands + 9 telescope_* MCP tools surface in the
 # consumer's `dart run artisan` and `dart run fluttersdk_artisan:mcp` outputs.
 #
 # No stub files are published: telescope captures via runtime hooks, not
@@ -41,7 +41,7 @@ post_install:
     4. Verify the MCP surface:
 
          dart run fluttersdk_artisan mcp:install    # add fluttersdk MCP server entry to .mcp.json
-         # then restart Claude Code; /mcp will list 7 telescope_* tools
+         # then restart Claude Code; /mcp will list 9 telescope_* tools
          # (telescope_tail, telescope_requests, telescope_clear,
          #  telescope_exceptions, telescope_events, telescope_gates,
-         #  telescope_dumps).
+         #  telescope_dumps, telescope_queries, telescope_caches).

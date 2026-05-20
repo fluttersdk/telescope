@@ -1,11 +1,8 @@
 ---
-applyTo: '**'
+applyTo: 'test/**'
 ---
 <!-- Generated for fluttersdk_telescope. Merged from artisan's tests.instructions.md + telescope's .claude/rules/tests.md. -->
----
-paths:
-  - "test/**"
----
+
 
 # Tests
 

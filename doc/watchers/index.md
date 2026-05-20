@@ -90,10 +90,10 @@ selective watcher exclusion is needed.
 |---|---|
 | Contract | `TelescopeWatcher` |
 | Name | `exception` |
-| Auto-install | Yes (auto-registered by `TelescopePlugin.install()`) |
+| Auto-install | No (opt-in via `TelescopePlugin.registerWatcher(ExceptionWatcher())` after install) |
 | Ring buffer | `TelescopeStore._exceptions` |
 | VM extension | `ext.telescope.exceptions` |
-| Opt-out | Register only the watchers you need manually instead of calling `TelescopePlugin.install()` |
+| Opt-out | Simply do not register; absent registration means no error capture. To coexist with Sentry / Bugsnag, register telescope FIRST so the chain-preserve wraps the next handler. |
 
 Hooks both `FlutterError.onError` (synchronous framework and widget errors) and
 `PlatformDispatcher.instance.onError` (asynchronous errors, isolate errors, plugin-originated
@@ -107,10 +107,11 @@ exists, the default `true` (handled) matches pre-install behavior.
 On `uninstall()`, both handlers are restored to exactly the values they held before `install()` was
 called. Calling `install()` while already installed is a no-op.
 
-Registration (auto-installed, shown for completeness):
+Registration (opt-in; add after `TelescopePlugin.install()`):
 
 ```dart
-TelescopePlugin.install(); // ExceptionWatcher registered automatically
+TelescopePlugin.install();
+TelescopePlugin.registerWatcher(ExceptionWatcher());
 ```
 
 Coexistence with Sentry (the chain-preserve contract means order matters; install Sentry first):
