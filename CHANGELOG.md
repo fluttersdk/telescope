@@ -6,6 +6,14 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- `telescope:install` magic-detect branch now injects `import 'package:magic/telescope_integration.dart';` instead of `import 'package:magic/magic.dart';`. Pairs with magic 1.0.0-alpha.15 which extracts the integration class into a dedicated sub-barrel.
+
+---
+
 ## [0.0.1] - 2026-05-20
 
 Initial public release of `fluttersdk_telescope`. Passive runtime inspector for Flutter apps with a framework-agnostic core and optional Magic-stack integration. Plugin of `fluttersdk_artisan` ^0.0.1.
