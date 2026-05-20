@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / Discussion
+    url: https://github.com/fluttersdk/telescope/discussions
+    about: Ask questions and discuss fluttersdk_telescope with the community
+  - name: Documentation
+    url: https://fluttersdk.com/telescope
+    about: Browse the canonical documentation site

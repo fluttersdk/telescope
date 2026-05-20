@@ -1,0 +1,73 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for fluttersdk_telescope
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for telescope? We'd love to hear it.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What feature or improvement would you like to see?
+      placeholder: A clear description of the feature and why it's needed.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: Subsystem
+      description: Which part of the framework does this relate to?
+      options:
+        - Watchers (LogWatcher / ExceptionWatcher / DumpWatcher / Magic*)
+        - Adapters (DioHttpAdapter / MagicHttpFacadeAdapter)
+        - Records (HttpRequestRecord / LogRecordEntry / etc.)
+        - Extension contracts (TelescopeWatcher / TelescopeHttpAdapter)
+        - VM Service extensions (ext.telescope.*)
+        - MCP tools (telescope_*)
+        - CLI commands (telescope:install / tail / requests / queries / caches / clear)
+        - TelescopeStore (ring buffers / capacity / clear)
+        - TelescopePlugin (install / registerHttpAdapter / registerWatcher)
+        - install.yaml plugin manifest
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: api-syntax
+    attributes:
+      label: Proposed API
+      description: How would the API look? Show the CLI invocation or Dart code shape.
+      placeholder: |
+        # CLI example
+        dart run fluttersdk_telescope telescope:tail --buffer=requests,logs
+
+        # Dart example
+        TelescopePlugin.registerWatcher(MyCustomWatcher());
+      render: yaml
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Describe a real scenario where you'd use this feature.
+      placeholder: "When monitoring a custom data source that isn't covered by the existing watchers..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any workarounds or alternative approaches you've tried?
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Example Implementation
+      description: How would this look in a real consumer app?
+      render: dart

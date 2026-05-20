@@ -1,0 +1,110 @@
+name: Bug Report
+description: Report a bug in fluttersdk_telescope
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in the details below so we can reproduce and fix it.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug.
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+      placeholder: |
+        1. Call `TelescopePlugin.install()` in a Flutter app
+        2. Trigger the relevant watcher (e.g. make an HTTP request)
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include the full error message and stack trace if available.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: Subsystem
+      description: Which part of the framework is affected?
+      options:
+        - Watchers (LogWatcher / ExceptionWatcher / DumpWatcher / Magic*)
+        - Adapters (DioHttpAdapter / MagicHttpFacadeAdapter)
+        - Records (HttpRequestRecord / LogRecordEntry / etc.)
+        - Extension contracts (TelescopeWatcher / TelescopeHttpAdapter)
+        - VM Service extensions (ext.telescope.*)
+        - MCP tools (telescope_*)
+        - CLI commands (telescope:install / tail / requests / queries / caches / clear)
+        - TelescopeStore (ring buffers / capacity / clear)
+        - TelescopePlugin (install / registerHttpAdapter / registerWatcher)
+        - install.yaml plugin manifest
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command Invocation
+      description: The exact `dart run fluttersdk_telescope ...` command (or MCP tool name + arguments) that triggered the bug.
+      placeholder: "dart run fluttersdk_telescope telescope:tail --limit=50"
+      render: shell
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Minimal Reproduction Code
+      description: A minimal code snippet that reproduces the issue.
+      render: dart
+
+  - type: input
+    id: telescope-version
+    attributes:
+      label: fluttersdk_telescope Version
+      placeholder: "0.0.1"
+    validations:
+      required: true
+
+  - type: input
+    id: dart-version
+    attributes:
+      label: Dart / Flutter Version
+      description: Output of `dart --version` and `flutter --version`.
+      placeholder: "Dart SDK version: 3.6.0 (stable) / Flutter 3.22.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - All
+    validations:
+      required: true
