@@ -20,6 +20,8 @@ import 'package:fluttersdk_telescope/src/records/exception_record.dart';
 import 'package:fluttersdk_telescope/src/records/gate_record.dart';
 import 'package:fluttersdk_telescope/src/records/http_request_record.dart';
 import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
+import 'package:fluttersdk_telescope/src/records/magic_cache_record.dart';
+import 'package:fluttersdk_telescope/src/records/query_record.dart';
 import 'package:fluttersdk_telescope/src/telescope_store.dart';
 
 void main() {
@@ -615,6 +617,120 @@ void main() {
       final records = TelescopeStore.recentHttp();
       expect(records, hasLength(1));
       expect(records.first.url, equals('https://after-resume.example.com'));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ext.telescope.queries handler (alpha-3)
+  // ---------------------------------------------------------------------------
+
+  group('ext.telescope.queries handler', () {
+    test('returns a parseable JSON envelope with a queries key', () async {
+      final result = await queriesHandler('ext.telescope.queries', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      expect(decoded.containsKey('queries'), isTrue);
+    });
+
+    test('returns records seeded via TelescopeStore.recordQuery', () async {
+      TelescopeStore.recordQuery(
+        QueryRecord(
+          sql: 'SELECT * FROM monitors WHERE id = ?',
+          bindings: const <Object?>[42],
+          timeMs: 12,
+          time: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final result = await queriesHandler('ext.telescope.queries', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      final records = decoded['queries'] as List<dynamic>;
+
+      expect(records, hasLength(1));
+      expect(
+          records.first['sql'], equals('SELECT * FROM monitors WHERE id = ?'));
+      expect(records.first['timeMs'], equals(12));
+      expect(records.first['connectionName'], equals('default'));
+    });
+
+    test('honors limit param when present', () async {
+      for (var i = 0; i < 5; i++) {
+        TelescopeStore.recordQuery(
+          QueryRecord(
+            sql: 'SELECT $i',
+            bindings: const <Object?>[],
+            timeMs: i,
+            time: DateTime(2026, 1, 1),
+          ),
+        );
+      }
+
+      final result =
+          await queriesHandler('ext.telescope.queries', {'limit': '2'});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      final records = decoded['queries'] as List<dynamic>;
+      expect(records, hasLength(2));
+    });
+
+    test('returns empty list when store has no query records', () async {
+      final result = await queriesHandler('ext.telescope.queries', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      expect(decoded['queries'], isEmpty);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ext.telescope.caches handler (alpha-3)
+  // ---------------------------------------------------------------------------
+
+  group('ext.telescope.caches handler', () {
+    test('returns a parseable JSON envelope with a caches key', () async {
+      final result = await cachesHandler('ext.telescope.caches', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      expect(decoded.containsKey('caches'), isTrue);
+    });
+
+    test('returns records seeded via TelescopeStore.recordMagicCache',
+        () async {
+      TelescopeStore.recordMagicCache(
+        MagicCacheRecord(
+          operation: 'put',
+          key: 'demo-key',
+          time: DateTime(2026, 1, 1),
+          ttl: const Duration(minutes: 5),
+        ),
+      );
+
+      final result = await cachesHandler('ext.telescope.caches', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      final records = decoded['caches'] as List<dynamic>;
+
+      expect(records, hasLength(1));
+      expect(records.first['operation'], equals('put'));
+      expect(records.first['key'], equals('demo-key'));
+    });
+
+    test('honors limit param when present', () async {
+      for (final op in const <String>['put', 'hit', 'miss', 'forget']) {
+        TelescopeStore.recordMagicCache(
+          MagicCacheRecord(
+            operation: op,
+            key: 'k-$op',
+            time: DateTime(2026, 1, 1),
+          ),
+        );
+      }
+
+      final result =
+          await cachesHandler('ext.telescope.caches', {'limit': '2'});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      final records = decoded['caches'] as List<dynamic>;
+      expect(records, hasLength(2));
+    });
+
+    test('returns empty list when store has no cache records', () async {
+      final result = await cachesHandler('ext.telescope.caches', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      expect(decoded['caches'], isEmpty);
     });
   });
 }

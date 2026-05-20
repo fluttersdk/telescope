@@ -18,7 +18,7 @@ void main() {
     // -------------------------------------------------------------------------
 
     test('returns exactly 7 descriptors', () {
-      expect(tools, hasLength(7));
+      expect(tools, hasLength(9));
     });
 
     // -------------------------------------------------------------------------
@@ -37,6 +37,8 @@ void main() {
           'telescope_events',
           'telescope_gates',
           'telescope_dumps',
+          'telescope_queries',
+          'telescope_caches',
         ]),
       );
     });
@@ -57,6 +59,8 @@ void main() {
       expect(byName['telescope_events'], equals('ext.telescope.events'));
       expect(byName['telescope_gates'], equals('ext.telescope.gates'));
       expect(byName['telescope_dumps'], equals('ext.telescope.dumps'));
+      expect(byName['telescope_queries'], equals('ext.telescope.queries'));
+      expect(byName['telescope_caches'], equals('ext.telescope.caches'));
     });
 
     test('no two descriptors share an extensionMethod (no overlap, no gap)',

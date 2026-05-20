@@ -1,6 +1,9 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import 'commands/telescope_caches_command.dart';
 import 'commands/telescope_clear_command.dart';
+import 'commands/telescope_install_command.dart';
+import 'commands/telescope_queries_command.dart';
 import 'commands/telescope_requests_command.dart';
 import 'commands/telescope_tail_command.dart';
 
@@ -17,8 +20,11 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
 
   @override
   List<ArtisanCommand> commands() => <ArtisanCommand>[
+        TelescopeInstallCommand(),
         TelescopeTailCommand(),
         TelescopeRequestsCommand(),
+        TelescopeQueriesCommand(),
+        TelescopeCachesCommand(),
         TelescopeClearCommand(),
       ];
 
@@ -254,6 +260,75 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
             },
           },
           extensionMethod: 'ext.telescope.dumps',
+        ),
+        McpToolDescriptor(
+          name: 'telescope_queries',
+          description: 'Return recent database query records from the '
+              'running Flutter app.\n'
+              '\n'
+              'Reads the Telescope queries ring buffer (populated by the '
+              'MagicQueryWatcher subscribed to magic\'s `QueryExecuted` '
+              'event). Each record carries timestamp, SQL string, bindings '
+              'list, execution time (ms), and connection name. Use this to '
+              'inspect what queries the QueryBuilder dispatched without '
+              'attaching a separate SQL profiler.\n'
+              '\n'
+              'Usage:\n'
+              '- Pass `limit: <n>` to cap how many records come back '
+              '(default returns the whole buffer).\n'
+              '- Returns newest-first; pair with telescope_clear before '
+              'a repro to isolate the queries from a specific user action.\n'
+              '- Only queries that go through magic\'s QueryBuilder (and '
+              'dispatch `QueryExecuted` via EventDispatcher) are recorded; '
+              'raw SQL on a direct sqlite3/dio client bypasses this tool.\n'
+              '- For Magic Cache traffic use telescope_caches; for HTTP '
+              'use telescope_requests; for app log lines use telescope_tail.',
+          inputSchema: {
+            'type': 'object',
+            'properties': {
+              'limit': {
+                'type': 'integer',
+                'description': 'Maximum number of query records to return '
+                    '(newest first). Omit for the whole buffer (cap '
+                    'enforced by the ring-buffer size, typically 500).',
+              },
+            },
+          },
+          extensionMethod: 'ext.telescope.queries',
+        ),
+        McpToolDescriptor(
+          name: 'telescope_caches',
+          description: 'Return recent Magic Cache operation records from '
+              'the running Flutter app.\n'
+              '\n'
+              'Reads the Telescope caches ring buffer (populated by the '
+              'MagicCacheWatcher subscribed to magic\'s CacheHit / CacheMiss '
+              '/ CachePut / CacheForget / CacheFlush events). Each record '
+              'carries timestamp, operation tag (`hit | miss | put | forget '
+              '| flush`), cache key, and optional TTL. Use this to inspect '
+              'cache traffic without instrumenting the consumer code.\n'
+              '\n'
+              'Usage:\n'
+              '- Pass `limit: <n>` to cap how many records come back '
+              '(default returns the whole buffer).\n'
+              '- Returns newest-first; pair with telescope_clear before '
+              'a repro to isolate the cache traffic of a specific action.\n'
+              '- Only Magic.Cache facade calls dispatch these events; raw '
+              'driver-level cache calls bypass this tool.\n'
+              '- For DB queries use telescope_queries; for HTTP use '
+              'telescope_requests.',
+          inputSchema: {
+            'type': 'object',
+            'properties': {
+              'limit': {
+                'type': 'integer',
+                'description': 'Maximum number of cache records to return '
+                    '(newest first). Omit for the whole buffer (cap '
+                    'enforced by the ring-buffer size, typically 500).',
+              },
+            },
+          },
+          extensionMethod: 'ext.telescope.caches',
         ),
       ];
 }

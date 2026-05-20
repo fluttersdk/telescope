@@ -16,6 +16,12 @@ dependencies:
   logging: ^1.2.0
   meta: ^1.16.0
 
+executables:
+  # `dart run fluttersdk_telescope <cmd>` ; telescope-flavoured artisan wrapper.
+  # Proxies the full artisan CLI surface AND surfaces the 3 telescope CLI
+  # commands + 7 telescope_* MCP tools via TelescopeArtisanProvider.
+  fluttersdk_telescope: fluttersdk_telescope
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

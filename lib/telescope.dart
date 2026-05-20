@@ -24,6 +24,7 @@ export 'src/records/http_request_record.dart';
 export 'src/records/log_record_entry.dart';
 export 'src/records/magic_cache_record.dart';
 export 'src/records/magic_model_record.dart';
+export 'src/records/query_record.dart';
 export 'src/telescope_artisan_provider.dart';
 export 'src/telescope_plugin.dart';
 export 'src/telescope_store.dart';

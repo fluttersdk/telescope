@@ -14,6 +14,8 @@ void registerAllTelescopeExtensions() {
   registerExtensionIdempotent('ext.telescope.events', eventsHandler);
   registerExtensionIdempotent('ext.telescope.gates', gatesHandler);
   registerExtensionIdempotent('ext.telescope.dumps', dumpsHandler);
+  registerExtensionIdempotent('ext.telescope.queries', queriesHandler);
+  registerExtensionIdempotent('ext.telescope.caches', cachesHandler);
   registerExtensionIdempotent('ext.telescope.clear', clearHandler);
   registerExtensionIdempotent('ext.telescope.pause', pauseHandler);
   registerExtensionIdempotent('ext.telescope.resume', resumeHandler);
@@ -82,6 +84,38 @@ Future<developer.ServiceExtensionResponse> eventsHandler(
   final records = TelescopeStore.recentEvents(limit: limit);
   return developer.ServiceExtensionResponse.result(
     jsonEncode({'events': records.map((r) => r.toJson()).toList()}),
+  );
+}
+
+/// Handler for ext.telescope.gates.
+///
+/// Returns recent [GateRecord] entries from [TelescopeStore]. Accepts an
+/// optional `limit` param (stringified integer) to cap the result set.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> queriesHandler(
+  String method,
+  Map<String, String> params,
+) async {
+  final limit = int.tryParse(params['limit'] ?? '');
+  final records = TelescopeStore.recentQueries(limit: limit);
+  return developer.ServiceExtensionResponse.result(
+    jsonEncode({'queries': records.map((r) => r.toJson()).toList()}),
+  );
+}
+
+/// Handler for ext.telescope.caches.
+///
+/// Returns recent [MagicCacheRecord] entries from [TelescopeStore]. Accepts
+/// an optional `limit` param (stringified integer) to cap the result set.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> cachesHandler(
+  String method,
+  Map<String, String> params,
+) async {
+  final limit = int.tryParse(params['limit'] ?? '');
+  final records = TelescopeStore.recentCaches(limit: limit);
+  return developer.ServiceExtensionResponse.result(
+    jsonEncode({'caches': records.map((r) => r.toJson()).toList()}),
   );
 }
 
