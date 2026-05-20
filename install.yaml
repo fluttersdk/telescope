@@ -1,0 +1,47 @@
+# fluttersdk_telescope install manifest (PluginInstaller DSL schema v1).
+#
+# Telescope is a passive observability plugin. Install registers
+# TelescopeArtisanProvider into the consumer's lib/app/_plugins.g.dart codegen
+# barrel (via the artisan manifest installer's _registerArtisanProvider step)
+# so the 3 telescope CLI commands + 7 telescope_* MCP tools surface in the
+# consumer's `dart run artisan` and `dart run fluttersdk_artisan:mcp` outputs.
+#
+# No stub files are published: telescope captures via runtime hooks, not
+# scaffolded code. The consumer wires the runtime install in their
+# lib/main.dart manually (see post_install message).
+#
+# See doc/install_yaml_schema.md (in fluttersdk_artisan) for the full schema.
+
+plugin_name: fluttersdk_telescope
+
+publish: {}
+
+magic:
+  provider: null   # telescope is artisan-only; no magic provider class to inject.
+
+post_install:
+  message: |
+    fluttersdk_telescope plugin:installed. Bootstrap workflow:
+
+    1. In your consumer's lib/main.dart, gated under `if (kDebugMode)`:
+
+         TelescopePlugin.install();                       // before runApp() (or before Magic.init() for the Magic stack)
+         TelescopePlugin.registerWatcher(ExceptionWatcher());
+         TelescopePlugin.registerWatcher(DumpWatcher());
+
+    2. If you use Magic, ALSO call MagicTelescopeIntegration.install()
+       AFTER Magic.init() to wire MagicHttpFacadeAdapter +
+       MagicModelWatcher + MagicEventWatcher + MagicGateWatcher.
+
+    3. Verify the CLI:
+
+         dart run artisan list             # consumer wrapper: lists artisan + plugin commands incl. telescope:*
+         dart run fluttersdk_telescope list # telescope's own wrapper: same surface, namespaced entry point
+
+    4. Verify the MCP surface:
+
+         dart run fluttersdk_artisan mcp:install    # add fluttersdk MCP server entry to .mcp.json
+         # then restart Claude Code; /mcp will list 7 telescope_* tools
+         # (telescope_tail, telescope_requests, telescope_clear,
+         #  telescope_exceptions, telescope_events, telescope_gates,
+         #  telescope_dumps).
