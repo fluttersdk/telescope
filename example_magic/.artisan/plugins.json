@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "name": "fluttersdk_telescope",
+      "providerImport": "package:fluttersdk_telescope/cli.dart",
+      "providerClass": "FluttersdkTelescopeArtisanProvider",
+      "registeredAt": "2026-05-19T00:08:54.775561Z"
+    }
+  ]
+}
