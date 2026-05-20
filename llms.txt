@@ -1,0 +1,32 @@
+# fluttersdk_telescope
+
+> Runtime inspector for Flutter and Dart apps. Watch HTTP requests, logs, exceptions, model lifecycle, cache operations, events, authorization gates, and database queries via 9 watchers, 6 CLI commands, and 9 MCP tools.
+
+Debug-time plugin for Dart 3.4+ Flutter apps. Surfaces live HTTP, logging, exception, and Magic framework state streams via `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches` CLI commands and 9 MCP tool surfaces for AI coding agents (Claude Code, Cursor, Windsurf).
+
+## Docs
+- [Installation](https://fluttersdk.com/telescope/getting-started/installation.md)
+- [Quickstart](https://fluttersdk.com/telescope/getting-started/quickstart.md)
+- [Watchers overview](https://fluttersdk.com/telescope/watchers/index.md)
+- [HTTP watcher](https://fluttersdk.com/telescope/watchers/http.md)
+- [Log watcher](https://fluttersdk.com/telescope/watchers/log.md)
+- [Exception watcher](https://fluttersdk.com/telescope/watchers/exception.md)
+- [Magic Model watcher](https://fluttersdk.com/telescope/watchers/magic-model.md)
+- [Magic Cache watcher](https://fluttersdk.com/telescope/watchers/magic-cache.md)
+- [Event watcher](https://fluttersdk.com/telescope/watchers/event.md)
+- [Gate watcher](https://fluttersdk.com/telescope/watchers/gate.md)
+- [Dump watcher](https://fluttersdk.com/telescope/watchers/dump.md)
+- [Query watcher](https://fluttersdk.com/telescope/watchers/query.md)
+- [MCP overview](https://fluttersdk.com/telescope/mcp/overview.md)
+- [MCP setup](https://fluttersdk.com/telescope/mcp/setup.md)
+- [MCP tool reference](https://fluttersdk.com/telescope/mcp/tool-reference.md)
+
+## Source
+- [GitHub](https://github.com/fluttersdk/telescope)
+- [pub.dev](https://pub.dev/packages/fluttersdk_telescope)
+- [CHANGELOG](https://github.com/fluttersdk/telescope/blob/master/CHANGELOG.md)
+
+## Optional
+- [README](https://github.com/fluttersdk/telescope/blob/master/README.md)
+- [LICENSE](https://github.com/fluttersdk/telescope/blob/master/LICENSE)
+- [Issues](https://github.com/fluttersdk/telescope/issues)
