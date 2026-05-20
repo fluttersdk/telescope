@@ -187,7 +187,7 @@ class TelescopeInstallCommand extends ArtisanCommand {
     if (_hasMagicDep()) {
       MainDartEditor.addImport(
         mainDartPath,
-        "import 'package:magic/magic.dart';",
+        "import 'package:magic/telescope_integration.dart';",
       );
       try {
         MainDartEditor.injectAfterMagicInit(

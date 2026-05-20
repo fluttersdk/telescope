@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:magic/magic.dart';
+import 'package:magic/telescope_integration.dart';
 import 'config/app.dart';
 import 'config/routing.dart';
 import 'config/view.dart';
@@ -37,7 +38,5 @@ void main() async {
     MagicTelescopeIntegration.install();
   }
 
-  runApp(
-    MagicApplication(title: 'Example Magic'),
-  );
+  runApp(MagicApplication(title: 'Example Magic'));
 }

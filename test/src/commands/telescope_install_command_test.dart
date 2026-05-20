@@ -28,6 +28,37 @@ class _RecordingRunner {
   }
 }
 
+/// Seed [tempDir] with a stub `lib/main.dart` carrying [mainDartContents] +
+/// a `pubspec.yaml` that lists [pubspecDeps] entries under `dependencies:`.
+///
+/// Returns the absolute path to the seeded main.dart. Callers run the
+/// command with `Directory.current` switched to [tempDir] so the source's
+/// relative `File('lib/main.dart')` + `File('pubspec.yaml')` lookups
+/// (telescope_install_command.dart L107 + L209) resolve against the seed.
+String _seedProject(
+  Directory tempDir, {
+  required String mainDartContents,
+  Map<String, String> pubspecDeps = const {},
+}) {
+  final mainDartPath = '${tempDir.path}/lib/main.dart';
+  Directory('${tempDir.path}/lib').createSync(recursive: true);
+  File(mainDartPath).writeAsStringSync(mainDartContents);
+  final depsBlock =
+      pubspecDeps.entries.map((e) => '  ${e.key}: ${e.value}').join('\n');
+  final pubspec = <String>[
+    'name: stub_app',
+    'environment:',
+    '  sdk: ">=3.4.0 <4.0.0"',
+    'dependencies:',
+    '  flutter:',
+    '    sdk: flutter',
+    if (depsBlock.isNotEmpty) depsBlock,
+    '',
+  ].join('\n');
+  File('${tempDir.path}/pubspec.yaml').writeAsStringSync(pubspec);
+  return mainDartPath;
+}
+
 void main() {
   group('TelescopeInstallCommand', () {
     tearDown(() {
@@ -153,5 +184,82 @@ void main() {
       expect(exit, equals(3));
       expect(runner.calls, hasLength(2));
     });
+
+    // -------------------------------------------------------------------------
+    // Magic-stack branch: pubspec lists `magic:` + main.dart has
+    // `await Magic.init(` ; injected magic import must reference the new
+    // opt-in sub-barrel (`package:magic/telescope_integration.dart`), NOT the
+    // legacy main barrel (`package:magic/magic.dart`).
+    // -------------------------------------------------------------------------
+
+    test(
+      'magic-stack app: injects import for the telescope_integration sub-barrel '
+      '(not the legacy magic.dart main barrel) plus the integration install '
+      'call after Magic.init',
+      () async {
+        final tempDir =
+            Directory.systemTemp.createTempSync('telescope_install_magic_');
+        addTearDown(() => tempDir.deleteSync(recursive: true));
+
+        final mainDartPath = _seedProject(
+          tempDir,
+          pubspecDeps: const {'magic': 'any'},
+          mainDartContents: '''
+import 'package:flutter/material.dart';
+import 'package:magic/magic.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Magic.init(configFactories: [() => {}]);
+  runApp(const MagicApplication());
+}
+''',
+        );
+
+        // Stub subprocesses (consumer:scaffold + plugin:install) so the
+        // command flows straight into step 3 (lib/main.dart wiring).
+        final runner = _RecordingRunner();
+        TelescopeInstallCommand.processRunner = runner.run;
+        // Skip consumer:scaffold; only plugin:install will record.
+        TelescopeInstallCommand.wrapperExistsCheck = () => true;
+
+        // Switch cwd to the seeded temp dir so the source's relative
+        // `File('lib/main.dart')` (L107) + `File('pubspec.yaml')` (L209)
+        // lookups resolve against the fixture instead of the host project.
+        final previousCwd = Directory.current;
+        Directory.current = tempDir;
+        addTearDown(() => Directory.current = previousCwd);
+
+        final exit = await TelescopeInstallCommand().handle(
+          ArtisanContext.bare(MapInput(const {}), BufferedOutput()),
+        );
+        expect(exit, equals(0));
+
+        final result = File(mainDartPath).readAsStringSync();
+
+        // The magic-detect branch (L187 ; _hasMagicDep + Magic.init anchor)
+        // must inject the opt-in sub-barrel; never the legacy main barrel.
+        expect(
+          result.contains("import 'package:magic/telescope_integration.dart';"),
+          isTrue,
+          reason:
+              'magic-stack inject must reference the new telescope_integration '
+              'sub-barrel, not the legacy magic.dart main barrel',
+        );
+
+        // Parity check: the integration install call still lands after
+        // Magic.init() (snippet body at source L196 is unchanged).
+        expect(
+          result.contains('MagicTelescopeIntegration.install();'),
+          isTrue,
+          reason: 'snippet body at telescope_install_command.dart L196 is '
+              'unchanged; only the import literal at L190 moves',
+        );
+
+        // Sanity: plugin:install ran (wrapper present, scaffold skipped).
+        expect(runner.calls, hasLength(1));
+        expect(runner.calls.single.contains('plugin:install'), isTrue);
+      },
+    );
   });
 }
