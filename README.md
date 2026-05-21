@@ -5,8 +5,8 @@
 <h1 align="center">Telescope</h1>
 
 <p align="center">
-  <strong>Passive runtime inspector for Flutter apps.</strong><br/>
-  HTTP, log, exception, debugPrint, DB query, and Magic model/cache/event/gate capture, surfaced over VM Service extensions to CLI and MCP tools.
+  <strong>Passive runtime inspector for Flutter. Read by humans, queried by AI agents.</strong><br/>
+  HTTP, logs, exceptions, <code>debugPrint</code>, DB queries, and Magic events captured over VM Service extensions, surfaced as <code>telescope:*</code> CLI commands and as 9 MCP tools for Claude Code.
 </p>
 
 <p align="center">
@@ -27,9 +27,11 @@
 
 ## Why Telescope?
 
-Debugging a running Flutter app has always required a mix of `print` statements, custom logging sinks, and network proxies that each tell a different slice of the story. When something goes wrong in production or a staging environment, you are left stitching together log files, Charles captures, and Flutter DevTools windows to reconstruct what actually happened. For AI coding agents driving an app via MCP tools, the problem is worse: there is no shared protocol to query runtime state.
+**Stop pasting stack traces into Claude. Let your agent read them itself.**
 
-**Telescope fixes this.** It registers a set of passive watchers and VM Service extensions at startup. Every HTTP request, log line, exception, `debugPrint` call, DB query, and Magic-framework lifecycle event is captured into a ring buffer. The CLI commands and MCP tools query those buffers without modifying the app's behavior. One `telescope:install` command wires the whole thing end-to-end.
+Debugging a running Flutter app has always required a mix of `print` statements, custom logging sinks, and network proxies that each tell a different slice of the story. When something breaks, you stitch together log files, Charles captures, and Flutter DevTools windows to reconstruct what happened. The AI workflow is worse: you copy the stack trace out of the console, paste it into Claude Code, copy the failing HTTP response, paste it back, repeat.
+
+**Telescope closes that loop.** Passive watchers and 11 VM Service extensions register at startup. Every HTTP request, log line, exception, `debugPrint` call, DB query, and Magic-framework lifecycle event lands in a ring buffer. CLI commands (`telescope:tail`, `telescope:requests`) stream the buffers for humans; **9 MCP tools** (`telescope_requests`, `telescope_exceptions`, `telescope_tail`, ...) expose the same buffers to AI coding agents like Claude Code, Cursor, and Codex. No copy-paste, no screenshots, no SaaS account. Debug-only; `kDebugMode` tree-shakes the entire subsystem on release builds.
 
 ```bash
 # One-shot self-bootstrap install (works from a fresh consumer)
@@ -224,11 +226,47 @@ artisan mcp:serve   ->   9 telescope_* tools surface to MCP clients (Claude Code
 
 Every concrete watcher and record type is a `final class`. The two adapter contracts (`TelescopeWatcher`, `TelescopeHttpAdapter`) are `abstract class` with frozen 3-method signatures (`name`, `install`, `uninstall`). Magic-side glue (`MagicHttpFacadeAdapter`, `MagicModelWatcher`, etc.) depends on these contracts; any signature change requires a coordinated bump across both repos.
 
+## Compared to
+
+| Tool | What it does | Where telescope wins |
+|---|---|---|
+| **[Sentry Flutter](https://pub.dev/packages/sentry_flutter)** | Production crash + perf reporting via external SaaS | Local-only; debug-only; CLI + MCP queryable from your agent; no DSN, no SaaS account |
+| **[Talker / talker_flutter](https://pub.dev/packages/talker_flutter)** | In-app log overlay, Dio interceptor | VM Service surface (queryable by tools); MCP server for AI agents; framework-aware model / cache / event / gate watchers |
+| **[Alice](https://pub.dev/packages/alice)** | In-app HTTP request overlay UI | Captures 9 buffers (not just HTTP); passive (no shake-to-open overlay); CLI streaming; AI agent access; debug tree-shake |
+| **[Flutter DevTools](https://docs.flutter.dev/tools/devtools/overview)** | Official browser-based inspector | Programmatic access (CLI + MCP), not just human-via-browser; ring-buffered records you can query between iterations; domain-aware (Magic) watchers |
+| **[mcp_flutter](https://github.com/Arenukvern/mcp_flutter)** | MCP toolkit for AI-driven UI interaction (tap, scroll, snapshot) | Complementary, not competitive: telescope owns runtime telemetry (HTTP, exceptions, queries); mcp_flutter owns UI automation |
+
 ## AI Agent Integration
 
-Use Telescope with AI coding assistants like Claude Code or Cursor via the artisan MCP server. The 9 `telescope_*` tools give the agent direct read access to every runtime buffer: inspect HTTP traffic without a proxy, read logs without grepping output, catch exceptions without scrolling DevTools.
+Telescope is the first Flutter MCP server focused on **runtime observability** (HTTP, exceptions, queries, cache) rather than UI automation. The 9 `telescope_*` tools give Claude Code, Cursor, Codex, or any MCP-compatible agent direct read access to every runtime buffer: inspect HTTP traffic without a proxy, read logs without grepping output, catch exceptions without scrolling DevTools.
 
-A typical agent session looks like this:
+### One-line `.mcp.json` install
+
+`telescope:install` auto-writes `.mcp.json` for you. Or wire it manually for any MCP-compatible client:
+
+```jsonc
+// .mcp.json (project root) — Claude Code / Codex / Cursor / Goose / VS Code Copilot
+{
+  "mcpServers": {
+    "fluttersdk": {
+      "command": "./bin/fsa",
+      "args": ["mcp:serve"],
+      "cwd": "."
+    }
+  }
+}
+```
+
+After this, restart your MCP client. The 9 `telescope_*` tools (plus the substrate's `artisan_*` tools) surface automatically in `/mcp`.
+
+### Before / after
+
+| Without telescope | With telescope |
+|---|---|
+| Stack trace appears in your console. You copy it. You paste it into Claude. Claude asks for the HTTP response that triggered it. You scroll, copy, paste. | Claude calls `telescope_exceptions` → reads the last 500 captured exceptions with timestamps + stack traces. Claude calls `telescope_requests` → reads matched HTTP records. Claude proposes the fix. |
+| You hot-reload, retry, paste again. | Claude calls `telescope_clear` between iterations. The fix loop closes without you in the middle. |
+
+### Typical agent session
 
 ```
 [agent] artisan_start { device: chrome }          // launch the app
@@ -272,6 +310,22 @@ dart pub publish --dry-run           # validate the publish archive
 ```
 
 [Report a bug](https://github.com/fluttersdk/telescope/issues/new?template=bug_report.yml) · [Request a feature](https://github.com/fluttersdk/telescope/issues/new?template=feature_request.yml)
+
+## Inspiration
+
+Telescope is inspired by [**Laravel Telescope**](https://laravel.com/docs/telescope), the elegant developer-tools assistant for Laravel that records every request, exception, log, query, cache hit, and event into a queryable timeline. The same pattern, ported to Flutter, with two additions that make sense for 2026: a CLI-first surface for terminal-native developers and a 9-tool MCP server so AI coding agents can read the timeline directly.
+
+## Part of the Magic SDK suite
+
+Telescope is one of seven packages in the [FlutterSDK Magic suite](https://fluttersdk.com), a Laravel-inspired Flutter ecosystem:
+
+- **[magic](https://pub.dev/packages/magic)** — Laravel-style framework (facades, ORM, providers, controllers, routing)
+- **[wind](https://pub.dev/packages/fluttersdk_wind)** — Tailwind-style className UI primitives for Flutter
+- **[fluttersdk_artisan](https://pub.dev/packages/fluttersdk_artisan)** — Pure Dart CLI + MCP substrate that telescope extends
+- **[fluttersdk_dusk](https://pub.dev/packages/fluttersdk_dusk)** — E2E gesture / snapshot driver via VM extensions
+- **fluttersdk_telescope** (this package) — Runtime observability via VM extensions + MCP
+- **[magic_tinker](https://pub.dev/packages/magic_tinker)** — Connected REPL into the running app
+- **[magic_starter](https://pub.dev/packages/magic_starter)** — Auth / profile / teams scaffolding
 
 ## License
 
