@@ -59,15 +59,17 @@ String _seedProject(
   return mainDartPath;
 }
 
+// Capture the production defaults at library load so tearDown can restore
+// them. Static fields would otherwise leak each test's override into the
+// next via the singleton static surface.
+final _originalProcessRunner = TelescopeInstallCommand.processRunner;
+final _originalWrapperExistsCheck = TelescopeInstallCommand.wrapperExistsCheck;
+
 void main() {
   group('TelescopeInstallCommand', () {
     tearDown(() {
-      // Restore module-level hooks between tests; they are static fields, so
-      // a test that mutates them leaks into the next without this reset.
-      TelescopeInstallCommand.processRunner =
-          TelescopeInstallCommand.processRunner; // no-op; left for clarity
-      TelescopeInstallCommand.wrapperExistsCheck =
-          () => File('bin/artisan.dart').existsSync();
+      TelescopeInstallCommand.processRunner = _originalProcessRunner;
+      TelescopeInstallCommand.wrapperExistsCheck = _originalWrapperExistsCheck;
     });
 
     // -------------------------------------------------------------------------
