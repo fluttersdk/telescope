@@ -1,7 +1,7 @@
 name: fluttersdk_telescope
 description: "Passive runtime inspector for Flutter. Captures HTTP, logs, exceptions, DB queries, and Magic events via VM Service extensions. CLI tail and MCP tools for Claude Code."
 version: 0.0.1
-homepage: https://telescope.fluttersdk.com
+homepage: https://fluttersdk.com/telescope
 repository: https://github.com/fluttersdk/telescope
 issue_tracker: https://github.com/fluttersdk/telescope/issues
 documentation: https://fluttersdk.com/telescope
