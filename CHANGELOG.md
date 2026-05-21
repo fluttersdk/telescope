@@ -12,6 +12,19 @@ _No unreleased changes yet._
 
 ---
 
+## [0.0.2] - 2026-05-22
+
+### Fixed
+
+- CHANGELOG correction. The `0.0.1` archive on pub.dev shipped with a populated `[Unreleased]` block left over from release prep: every entry listed there (magic dev-dep drop, `pubspec_overrides.yaml` removal, `test/src/magic/` deletion, `magic` tag cleanup in `dart_test.yaml` + CI workflows + agent-instruction files, `example_magic/` removal, sub-barrel import path swap in `telescope:install`) actually shipped INSIDE `0.0.1`; nothing was published before it. This `0.0.2` republishes the corrected CHANGELOG so the consolidated `0.0.1` history surfaces on pub.dev.
+- README pinned-install snippet bumped from `^0.0.1` to `^0.0.2` so the example matches the published version.
+
+### Unchanged
+
+- No code, no test, no runtime behavior, no public API surface changed. `lib/`, `bin/`, `test/`, `example/`, and all 11 `ext.telescope.*` VM Service extensions plus 9 `telescope_*` MCP tools are byte-identical to `0.0.1`.
+
+---
+
 ## [0.0.1] - 2026-05-22
 
 Initial public release of `fluttersdk_telescope`. Passive runtime inspector for Flutter apps with a framework-agnostic core and optional Magic-stack integration. Plugin of `fluttersdk_artisan` ^0.0.4 (hosted-only; no path overrides). Vanilla-Flutter clean: zero `magic` references in the production or default-test surface. Magic-stack integration is opt-in via runtime detection in `telescope:install`, which injects `import 'package:magic/telescope_integration.dart';` and an `if (kDebugMode) MagicTelescopeIntegration.install();` block after `await Magic.init(` when the consumer's pubspec lists `magic:`.

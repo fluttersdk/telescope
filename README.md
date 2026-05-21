@@ -86,7 +86,7 @@ For everyday repeat usage, the consumer's `./bin/fsa` (artisan native AOT binary
 ```yaml
 # pubspec.yaml
 dependencies:
-  fluttersdk_telescope: ^0.0.1
+  fluttersdk_telescope: ^0.0.2
 ```
 
 #### 2. Install in `main.dart`
