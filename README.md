@@ -33,6 +33,7 @@ Debugging a running Flutter app has always required a mix of `print` statements,
 
 ```bash
 # One-shot self-bootstrap install (works from a fresh consumer)
+flutter pub add fluttersdk_telescope
 dart run fluttersdk_telescope telescope:install
 ```
 
@@ -61,6 +62,7 @@ After install, the consumer gets the artisan fast-cli at `./bin/fsa` (native AOT
 Add the dependency, then let telescope bootstrap itself via its own CLI entry point. No prior `fluttersdk_artisan` wiring is required; telescope's binary carries the artisan substrate so the install works from a fresh consumer:
 
 ```bash
+flutter pub add fluttersdk_telescope
 dart run fluttersdk_telescope telescope:install
 ```
 

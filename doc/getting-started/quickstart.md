@@ -3,21 +3,21 @@
 A 3-step walkthrough taking a fresh Flutter project from zero to a working Telescope setup
 with runtime buffers populated and the first MCP tool call returning live data.
 
-Prerequisites: Flutter SDK 3.22+, Dart SDK 3.4+, a Flutter project with a valid
-`pubspec.yaml` listing `fluttersdk_telescope` under `dependencies`, and `flutter pub get`
-already run so `.dart_tool/package_config.json` is present. `fluttersdk_artisan` is pulled
-in transitively by telescope; you do not need to install it separately. The
-`telescope:install` command scaffolds `bin/dispatcher.dart` for you on first run.
+Prerequisites: Flutter SDK 3.22+, Dart SDK 3.4+, a Flutter project (any vanilla
+`flutter create` output works). `fluttersdk_artisan` is pulled in transitively by
+telescope; you do not need to install it separately. The `telescope:install` command
+scaffolds `bin/dispatcher.dart` for you on first run.
 
 ---
 
 ### 1. Install Telescope
 
-Run the one-shot install command through telescope's own bootstrap entry point. It
-scaffolds the artisan harness if needed, registers the plugin, and patches `lib/main.dart`
-with the `kDebugMode`-guarded install call:
+Add the dependency, then run the one-shot install through telescope's own bootstrap entry
+point. The install command scaffolds the artisan harness if needed, registers the plugin,
+and patches `lib/main.dart` with the `kDebugMode`-guarded install call:
 
 ```bash
+flutter pub add fluttersdk_telescope
 dart run fluttersdk_telescope telescope:install
 ```
 

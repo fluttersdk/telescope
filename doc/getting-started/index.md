@@ -20,6 +20,7 @@ bootstrap CLI entry point so the command works from a fresh consumer without any
 `fluttersdk_artisan` wiring:
 
 ```bash
+flutter pub add fluttersdk_telescope
 dart run fluttersdk_telescope telescope:install
 ```
 

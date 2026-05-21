@@ -23,13 +23,18 @@ which carries the artisan substrate, so no prior `fluttersdk_artisan` setup is r
 <a name="option-a-one-shot-install"></a>
 ## Option A: one-shot self-bootstrap install (recommended)
 
-Add `fluttersdk_telescope` to `pubspec.yaml`, run `dart pub get`, then bootstrap via
-telescope's own CLI entry point. The standalone binary carries the artisan substrate, so
-this works from a completely fresh consumer with no prior `fluttersdk_artisan` wiring:
+Add `fluttersdk_telescope` to your project, then bootstrap via telescope's own CLI entry
+point. The standalone binary carries the artisan substrate, so this works from a completely
+fresh consumer with no prior `fluttersdk_artisan` wiring:
 
 ```bash
+flutter pub add fluttersdk_telescope
 dart run fluttersdk_telescope telescope:install
 ```
+
+`flutter pub add` writes the dependency to `pubspec.yaml` and runs `dart pub get` in one
+step. The `dart run` line then invokes telescope's standalone CLI to scaffold and patch
+the consumer.
 
 The command performs three operations in order:
 
