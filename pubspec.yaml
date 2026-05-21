@@ -1,5 +1,5 @@
 name: fluttersdk_telescope
-description: "Passive runtime inspector for Flutter apps. HTTP, log, exception, debugPrint, DB query, and Magic model/cache/event/gate capture, surfaced over VM Service extensions to CLI and MCP tools."
+description: "Passive runtime inspector for Flutter. Captures HTTP, logs, exceptions, DB queries, and Magic events via VM Service extensions. CLI tail and MCP tools for Claude Code."
 version: 0.0.1
 homepage: https://telescope.fluttersdk.com
 repository: https://github.com/fluttersdk/telescope
@@ -7,13 +7,16 @@ issue_tracker: https://github.com/fluttersdk/telescope/issues
 documentation: https://fluttersdk.com/telescope
 
 # pub.dev search topics (max 5, lowercase + hyphens, regex ^[a-z][a-z0-9-]{0,31}$).
-# These drive tag-based discovery on https://pub.dev/packages?q=topic%3A<topic>.
+# Order = priority. `mcp-server` + `ai-agents` are blue-ocean (2 packages each
+# as of 2026-05); `inspector` + `observability` are mid-traffic perfect-fit;
+# `debugging` is the high-volume catch-all. Skip `flutter` (near-zero signal)
+# and `vm-service` (zero traffic). See marketing dossier for full analysis.
 topics:
-  - flutter
-  - inspector
-  - debugging
   - mcp-server
+  - ai-agents
+  - inspector
   - observability
+  - debugging
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
