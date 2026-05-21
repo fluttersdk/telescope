@@ -11,8 +11,7 @@ framework. Dart 3.4+ / Flutter 3.22+. Plugin of `fluttersdk_artisan`: contribute
 surfaces 6 CLI commands (`telescope:install`, `telescope:tail`, `telescope:requests`, `telescope:queries`,
 `telescope:caches`, `telescope:clear`) and 9 MCP tools backed by `ext.telescope.*` VM Service extensions.
 
-Deps: `fluttersdk_artisan` (path), `logging: ^1.2.0`, `meta: ^1.16.0`. Dev deps: `flutter_test`, `flutter_lints`,
-`magic` (path, dev-only for watcher integration tests). This package is debug-only at the consumer call site: the
+Deps: `fluttersdk_artisan: ^0.0.2` (hosted), `logging: ^1.2.0`, `meta: ^1.16.0`. Dev deps: `flutter_test`, `flutter_lints`. This package is debug-only at the consumer call site: the
 consumer wraps `TelescopePlugin.install()` inside `if (kDebugMode)` so release builds tree-shake the entire subsystem.
 
 The package ships its own Flutter-free CLI entry point (`bin/fluttersdk_telescope.dart`) so
@@ -89,7 +88,6 @@ coordinated bump across both repos.
 | Path | Purpose |
 |---|---|
 | `example/` | Vanilla path: Dio adapter + `package:logging` sink + `ExceptionWatcher` + `DumpWatcher`. |
-| `example_magic/` | Magic-managed path: `MagicHttpFacadeAdapter` + `MagicModelWatcher` + `MagicEventWatcher` + `MagicGateWatcher`. |
 
 ## Conventions
 
@@ -133,8 +131,7 @@ coordinated bump across both repos.
   CLI parity remains V1.x backlog. DB queries and caches do have CLI commands as of alpha-3.
 - `install.yaml` manifest at the package root is required for `plugin:install fluttersdk_telescope`. Do not delete
   it; the V1 manifest carries the post-install bootstrap message and the `executables:` mapping anchor.
-- No new production dependencies beyond `fluttersdk_artisan`, `logging`, and `meta`. Example apps may add their
-  own demo deps (Dio for vanilla, `magic` for `example_magic`).
+- No new production dependencies beyond `fluttersdk_artisan`, `logging`, and `meta`. The vanilla example app may
+  add its own demo deps (Dio for HTTP, `package:logging` for logs).
 - `DumpWatcher` must not capture in release builds. The `kDebugMode` guard at install time is load-bearing.
-- `example/` and `example_magic/` are dev playgrounds for live e2e validation. Production code does not depend
-  on them.
+- `example/` is a dev playground for live e2e validation. Production code does not depend on it.

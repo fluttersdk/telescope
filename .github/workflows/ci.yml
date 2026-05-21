@@ -30,7 +30,7 @@ jobs:
         run: dart analyze lib/ test/ bin/
 
       - name: Run tests with coverage
-        run: flutter test --coverage --exclude-tags=integration,magic --timeout=30s
+        run: flutter test --coverage --exclude-tags=integration --timeout=30s
 
       - name: Enforce 80% line coverage floor
         run: |
@@ -50,5 +50,4 @@ jobs:
           fail_ci_if_error: false
 
       - name: Validate publish archive
-        # Requires magic ^1.0.0 published to pub.dev (PREREQUISITE).
         run: dart pub publish --dry-run

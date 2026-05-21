@@ -14,8 +14,6 @@ Mirror the `lib/src/` tree exactly. Production file `lib/src/watchers/exception_
 
 `flutter_test` only (package declared as dev dep). No mockito. Stub via contract inheritance: write a private `_FakeWatcher`, `_NoOpAdapter`, `_RecordingStore` class inside the test file. Apply the extract-when-third-caller rule before moving fakes to a shared file.
 
-The `magic` dev dep (`path: ../magic`) is available for the integration tests under `test/src/magic/`. Those tests exercise `MagicEventWatcher`, `MagicGateWatcher`, `MagicModelWatcher`, `MagicCacheWatcher`, and `MagicHttpFacadeAdapter` via magic's `EventDispatcher` and `TelescopeStore` directly. Mark magic-integration tests with `@Tags(['magic'])`. They do NOT spin up a real Flutter app or VM Service.
-
 No real VM Service connection in any test. Handler tests (`test/src/extensions/`) call the handler functions directly (they are `@visibleForTesting`) and assert on the returned `ServiceExtensionResponse` JSON.
 
 ## State isolation
