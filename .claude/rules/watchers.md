@@ -6,7 +6,7 @@ paths:
 
 # Watchers Subsystem
 
-## Contract shape
+## Contract
 
 Every watcher implements `TelescopeWatcher` (in `lib/src/watchers/watcher.dart`):
 
@@ -18,22 +18,23 @@ abstract class TelescopeWatcher {
 }
 ```
 
-The three-method shape is frozen: magic-side glue (`MagicModelWatcher`, `MagicCacheWatcher`, `MagicEventWatcher`,
-`MagicGateWatcher`) depends on it. No new abstract methods without a coordinated magic-side bump.
+The three-method shape is **frozen**: magic-side glue (`MagicModelWatcher`, `MagicCacheWatcher`,
+`MagicEventWatcher`, `MagicGateWatcher`, `MagicQueryWatcher`) depends on it. No new abstract methods without a
+coordinated magic-side bump.
 
 ## Idempotency
 
-Every watcher uses a `bool _installed` guard. `install()` returns immediately when `_installed == true`.
-`uninstall()` returns immediately when `_installed == false`. Tests verify both directions: installing twice is a
-no-op (previous handler saved only once); uninstalling when not installed is a no-op. Use a private `_installed`
-field on the instance (not a static flag) so multiple watcher instances in test isolation are independent.
+Every watcher uses a private `bool _installed` instance field (not a static flag, so multiple instances in test
+isolation are independent). `install()` returns immediately when `_installed == true`; `uninstall()` returns
+immediately when `_installed == false`. Tests verify both directions: installing twice is a no-op (previous
+handler saved only once); uninstalling when not installed is a no-op.
 
 ## Chain-preserve pattern
 
 Any watcher that overrides a global hook (`FlutterError.onError`, `PlatformDispatcher.instance.onError`,
-`debugPrint`) must save the previous handler before replacing it and call it inside the new handler body. Restoring
-the previous handler on `uninstall()` is symmetric. This is how Sentry and Bugsnag coexist with telescope without
-masking each other. Steps inside `install()` that do this should use numbered comments:
+`debugPrint`) saves the previous handler before replacing it and calls the previous handler inside the new
+handler body. `uninstall()` restores the previous handler symmetrically. This is how Sentry and Bugsnag coexist
+with telescope without masking each other. Use numbered step comments:
 
 ```dart
 // 1. Chain-preserve FlutterError.onError (sync framework errors).
@@ -45,16 +46,16 @@ _previousPlatformOnError = PlatformDispatcher.instance.onError;
 PlatformDispatcher.instance.onError = (error, stack) { ... return true; };
 ```
 
-`ExceptionWatcher` (the reference implementation) hooks both `FlutterError.onError` and
-`PlatformDispatcher.instance.onError`. The `PlatformDispatcher.onError` handler always returns `true` to signal
-handled status. `DumpWatcher` chain-preserves `debugPrint` using the same pattern.
+`ExceptionWatcher` is the reference for both `FlutterError.onError` and `PlatformDispatcher.instance.onError`;
+the `PlatformDispatcher.onError` handler always returns `true` to signal handled status. `DumpWatcher`
+chain-preserves `debugPrint` using the same pattern.
 
-## kDebugMode gate for DumpWatcher
+## DumpWatcher kDebugMode gate
 
-`DumpWatcher.install()` wraps the override in `if (kDebugMode || _allowInRelease)` where `_allowInRelease` is a
-private field defaulting to `false`. This prevents capture in release builds where `debugPrint` is a no-op anyway
-but the guard makes intent explicit and matches the plan-wide guardrail. `ExceptionWatcher` does NOT gate behind
-`kDebugMode` internally: the consumer's `if (kDebugMode)` at install time is the gate for all watchers.
+`DumpWatcher.install()` wraps the override in `if (kDebugMode || _allowInRelease)` where `_allowInRelease`
+defaults to `false`. Prevents capture in release builds (where `debugPrint` is a no-op anyway) and makes intent
+explicit. `ExceptionWatcher` does NOT gate behind `kDebugMode` internally: the consumer's `if (kDebugMode)` at
+install time is the gate for all watchers.
 
 ## Record feeding
 
@@ -64,16 +65,8 @@ its specific record type and `TelescopeStore`; it does not import `telescope_plu
 
 ## Test placement
 
-Mirror the `lib/src/watchers/` tree under `test/src/watchers/`. One production file, one test file. Group by class,
-then by method:
-
-```
-group('ExceptionWatcher', () {
-  group('.install()', () { ... });
-  group('.uninstall()', () { ... });
-});
-```
-
-Tests for chain-preserve: install a sentinel handler first, then install the watcher, trigger an error, assert the
-sentinel was also called. Verify `uninstall()` restores the sentinel correctly. Use `TelescopeStore.resetForTesting()`
-in `tearDown` and restore any replaced global handlers via `addTearDown` to keep test isolation clean.
+Mirror `lib/src/watchers/` under `test/src/watchers/`. One production file, one test file. Tests for
+chain-preserve: install a sentinel handler first, then install the watcher, trigger an error, assert the sentinel
+was also called. Verify `uninstall()` restores the sentinel correctly. Use `TelescopeStore.resetForTesting()` in
+`tearDown` and restore replaced global handlers via `addTearDown` (see `.claude/rules/tests.md` for the full test
+discipline).
