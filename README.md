@@ -187,14 +187,6 @@ Vanilla Flutter app (no Magic framework) that exercises every framework-agnostic
 cd example && flutter run -d chrome
 ```
 
-### `example_magic/`
-
-Magic-stack app that exercises all 9 watchers including the Magic-specific adapters: `MagicHttpFacadeAdapter` (Http facade traffic), `MagicModelWatcher` (Eloquent lifecycle), `MagicCacheWatcher` (Cache facade lifecycle), `MagicEventWatcher` (Event.dispatch calls), `MagicGateWatcher` (Gate authorization checks), and `MagicQueryWatcher` (DB queries via the magic database connector). Use the artisan MCP server from this directory to verify all 9 `telescope_*` MCP tools surface correctly.
-
-```bash
-cd example_magic && flutter run -d chrome
-```
-
 ## Architecture
 
 Telescope is subsystem-first under `lib/src/`, every directory owns a single concern:

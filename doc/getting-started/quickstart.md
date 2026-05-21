@@ -26,12 +26,12 @@ looks like:
 
 ```
 [plugin:install] registered TelescopeArtisanProvider
-[main.dart]      injected TelescopePlugin.install() before Magic.init()
-[main.dart]      injected MagicTelescopeIntegration.install() after Magic.init()
+[main.dart]      injected TelescopePlugin.install() before framework init
+[main.dart]      injected MagicTelescopeIntegration.install() after Magic.init() (when using Magic framework)
 telescope:install done
 ```
 
-On a Magic-stack app, `MagicTelescopeIntegration.install()` is also injected after
+When using the Magic framework, `MagicTelescopeIntegration.install()` is also injected after
 `Magic.init()` so all 9 watchers activate automatically. On a vanilla Flutter app only
 the core watchers (`LogWatcher`, plus any you opt into manually) are wired.
 
@@ -63,8 +63,8 @@ WebSocket address, and writes the full process state (PID, URI, device, project 
 to `~/.artisan/state.json`.
 
 With the app running, navigate the UI to generate HTTP traffic, logs, and any exceptions.
-On a Magic-stack app, every HTTP call through the `Http` facade, every model save, and
-every cache read goes straight into the Telescope ring buffers. On a vanilla Flutter app,
+When using the Magic framework, every HTTP call through the `Http` facade, every model save,
+and every cache read goes straight into the Telescope ring buffers. On a vanilla Flutter app,
 `package:logging` output and `debugPrint` calls fill the log and dump buffers.
 
 You can also exercise the watchers programmatically from the app:

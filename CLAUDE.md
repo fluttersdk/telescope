@@ -12,10 +12,7 @@ surfaces 6 CLI commands (`telescope:install`, `telescope:tail`, `telescope:reque
 `telescope:caches`, `telescope:clear`) and 9 MCP tools backed by `ext.telescope.*` VM Service extensions.
 
 Production deps (hosted constraints in pubspec.yaml): `fluttersdk_artisan: ^0.0.2`, `logging: ^1.2.0`,
-`meta: ^1.16.0`. Dev deps: `flutter_test`, `flutter_lints: ^5.0.0`, `magic: ^1.0.0-alpha` (for `test/src/magic/`
-integration tests, tagged `@Tags(['magic'])` and excluded from default CI runs). During local dev, sibling
-resolution happens via `pubspec_overrides.yaml` (committed, .pubignore'd) which path-overrides `fluttersdk_artisan`,
-`fluttersdk_dusk`, and `magic` to `references/<sibling>/` paths. This package is debug-only at the consumer call
+`meta: ^1.16.0`. Dev deps: `flutter_test`, `flutter_lints: ^5.0.0`. This package is debug-only at the consumer call
 site: the consumer wraps `TelescopePlugin.install()` inside `if (kDebugMode)` so release builds tree-shake the
 entire subsystem.
 
@@ -33,14 +30,13 @@ artisan PluginInstaller.
 
 | Command | When |
 |---|---|
-| `flutter test --exclude-tags=integration,magic --timeout=30s` | Default CI test runner. Excludes magic-integration (require `pubspec_overrides.yaml` magic path) and integration (slow subprocess) tags. Baseline 307+ green after alpha-3. |
-| `flutter test --tags=magic` | Run magic-integration tests opt-in (requires sibling `references/magic/` resolved via `pubspec_overrides.yaml`). |
+| `flutter test --exclude-tags=integration --timeout=30s` | Default CI test runner. Excludes integration (slow subprocess) tags. Baseline 307+ green after alpha-3. |
 | `flutter test --coverage` | Produce `coverage/lcov.info` directly (no `coverage:format_coverage` post-process needed). |
 | `dart format lib/ test/ bin/` | Format. Must produce no diff. |
 | `dart analyze lib/ test/ bin/` | Static analysis. Zero issues required across `lib/`, `test/`, `bin/`. |
-| `flutter pub get` | Resolve deps (uses `pubspec_overrides.yaml` for sibling paths during dev). |
+| `flutter pub get` | Resolve deps. |
 | `dart run fluttersdk_telescope <cmd>` | Run a `telescope:*` command standalone (Flutter-free CLI wrapper). |
-| `dart pub publish --dry-run` | Validate publish archive. PREREQUISITE: magic 1.0.0 published OR re-baselined so transitive `xml ^7.0.0` constraint resolves. |
+| `dart pub publish --dry-run` | Validate publish archive. |
 
 ## Golden Rules (apply on every change)
 
@@ -67,10 +63,9 @@ artisan PluginInstaller.
    section (`## [X.Y.Z] - YYYY-MM-DD`) on tag push. Keep subsystem-subsection grouping (Watchers / Records /
    TelescopeStore / VM Service extensions / MCP tools / CLI commands) for entries that span multiple subsystems.
 6. **Green gate plus TDD**. `dart format lib/ test/ bin/` produces zero diff, `dart analyze lib/ test/ bin/`
-   returns zero issues, `flutter test --exclude-tags=integration,magic` returns all green. TDD red-green-refactor
+   returns zero issues, `flutter test --exclude-tags=integration` returns all green. TDD red-green-refactor
    for behavioral changes: write the failing test first, then the implementation that turns it green. Reverting
-   the implementation must turn the test red again. The `@Tags(['magic'])` annotation gates magic-integration
-   tests; default `flutter test` excludes them.
+   the implementation must turn the test red again.
 
 ## Architecture
 
@@ -125,9 +120,6 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 - Numbered step comments (`// 1.`, `// 2.`) for watcher `install()` bodies that chain-preserve handlers (they all
   have 2-3 distinct phases: save previous, replace, guard). Docblocks (`///`) on public classes and the abstract
   contracts only; skip decorative docstrings on trivial getters.
-- `@Tags(['magic'])` library annotation on every `test/src/magic/*.dart` file with `library;` directive on the
-  next line. Default `flutter test` excludes them; opt-in via `flutter test --tags=magic` for local verification
-  when `pubspec_overrides.yaml` is active.
 - No em-dash (U+2014) or en-dash (U+2013) in any artifact (code comments, commits, docs, PR descriptions, chat).
   Use comma, colon, semicolon, period, or parentheses. ASCII hyphen (U+002D) is fine.
 
@@ -146,12 +138,8 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
   counterparts) are frozen; magic-side calls them directly.
 - `install.yaml` manifest at the package root is required for `plugin:install fluttersdk_telescope`. Do not delete
   it; the V1 manifest carries the post-install bootstrap message + the `executables:` mapping anchor.
-- `pubspec_overrides.yaml` is COMMITTED to the repo (not gitignored) so collaborators get dev resolution
-  automatically. `.pubignore` excludes it from the publish archive (per dart-lang/pub#3781, pub publish ignores it
-  anyway, but explicit exclusion keeps the archive lean). Do not move it to `.gitignore` or to a personal-only
-  scope.
 - No new production dependencies beyond `fluttersdk_artisan`, `logging`, and `meta`. Example apps may add their own
-  demo deps (Dio for vanilla, `magic` for `example_magic`).
+  demo deps (Dio for vanilla).
 - `DumpWatcher` must not capture in release builds. The `kDebugMode` guard at install time is load-bearing.
 - No CLI command additions for events, gates, or dumps in the 0.0.1 line. MCP-only access for these three watchers
   is intentional; CLI parity remains V1.x backlog.

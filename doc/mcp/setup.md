@@ -39,8 +39,9 @@ After install, the consumer's fast-cli is available at `./bin/fsa` (native AOT, 
 
 ## Step 2: Install the Flutter-side plugin
 
-Inside `lib/main.dart`, install `TelescopePlugin` before `Magic.init()`. Gate on `kDebugMode` so
-the entire subsystem tree-shakes out of release builds:
+Inside `lib/main.dart`, install `TelescopePlugin` before `runApp`, gated on `kDebugMode` so
+the entire subsystem tree-shakes out of release builds. When using the Magic framework, place
+the call before `Magic.init()` so the Http facade is wired in time:
 
 ```dart
 import 'package:flutter/foundation.dart';
@@ -49,8 +50,8 @@ import 'package:fluttersdk_telescope/telescope.dart';
 Future<void> main() async {
   if (kDebugMode) {
     TelescopePlugin.install();
-    // Optional: register adapters and watchers contributed by magic.
-    // MagicTelescopeIntegration.install() after Magic.init().
+    // Optional: when using the Magic framework, register its adapters and watchers.
+    // Call MagicTelescopeIntegration.install() after Magic.init().
   }
   await Magic.init(...);
   runApp(MagicApplication());

@@ -37,9 +37,10 @@ The command performs three operations in order:
    if it is missing. This is a no-op when the harness is already present.
 2. Runs `plugin:install fluttersdk_telescope`, which registers `TelescopeArtisanProvider`
    in `.artisan/plugins.json` and refreshes the codegen barrel.
-3. Patches `lib/main.dart` to call `TelescopePlugin.install()` before `Magic.init()` on
-   Magic-stack apps, or before `runApp` on vanilla Flutter. The patch is wrapped in a
-   `kDebugMode` guard automatically.
+3. Patches `lib/main.dart` to call `TelescopePlugin.install()` before `runApp`. When using
+   the Magic framework, the patch places the call before `Magic.init()` so the Http facade
+   is wired before MagicTelescopeIntegration runs. The patch is wrapped in a `kDebugMode`
+   guard automatically.
 
 The command is idempotent. Re-running it when the files are already patched is safe.
 
@@ -80,8 +81,9 @@ dart pub get
 
 ### 2. Wire TelescopePlugin in lib/main.dart
 
-Install Telescope before `Magic.init()` on Magic-stack apps, or before `runApp` on
-vanilla Flutter. Wrap every install call in `kDebugMode`:
+Install Telescope before `runApp`, wrapped in `kDebugMode`. When using the Magic framework,
+place the call before `Magic.init()` so the Http facade is wired before
+MagicTelescopeIntegration runs:
 
 ```dart
 import 'package:flutter/foundation.dart';
@@ -99,8 +101,8 @@ void main() async {
     TelescopePlugin.registerWatcher(DumpWatcher());
   }
 
-  // 3. Magic.init() runs after Telescope so the Http facade is wired before
-  //    MagicTelescopeIntegration tries to wrap it.
+  // 3. Framework init (e.g. Magic.init()) runs after Telescope so the Http facade
+  //    is wired before MagicTelescopeIntegration tries to wrap it.
   await Magic.init(configFactories: [...]);
 
   if (kDebugMode) {

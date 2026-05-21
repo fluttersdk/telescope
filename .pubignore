@@ -42,11 +42,6 @@ example/packages/*/.idea/
 example/packages/*/*.iml
 example/packages/*/pubspec.lock
 
-# ---------------------------------------------------------------------------
-# example_magic/: second example tree. Same rationale as example/: drop
-# Flutter platform scaffolds, keep sources and pubspec.
-# ---------------------------------------------------------------------------
-example_magic/
 
 # ---------------------------------------------------------------------------
 # Build artifacts, generated docs, test output
@@ -60,10 +55,8 @@ coverage/
 # ---------------------------------------------------------------------------
 # Library hygiene: pubspec.lock does not ship per Dart guidelines.
 # https://dart.dev/guides/libraries/private-files#pubspeclock
-# pubspec_overrides.yaml is dev-only and must not ship to pub.dev.
 # ---------------------------------------------------------------------------
 pubspec.lock
-pubspec_overrides.yaml
 
 # ---------------------------------------------------------------------------
 # IDE, editor, OS scratch

@@ -53,8 +53,8 @@ Release builds tree-shake the entire subsystem (dart2js + dart2native AOT).
 import 'package:flutter/foundation.dart';
 import 'package:fluttersdk_telescope/telescope.dart';
 
-// Magic-side watchers live in the magic package.
-import 'package:magic/magic.dart'; // MagicTelescopeIntegration
+// Magic-side watchers and adapters (if using Magic framework).
+import 'package:magic/magic.dart'; // MagicTelescopeIntegration (optional)
 
 void main() async {
   if (kDebugMode) {
