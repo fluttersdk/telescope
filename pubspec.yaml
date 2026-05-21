@@ -36,5 +36,3 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  # magic dev-dep for Magic integration tests under test/src/magic/; tagged @Tags(['magic']) and excluded from default flutter test runs.
-  magic: ^1.0.0-alpha
