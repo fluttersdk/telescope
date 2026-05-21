@@ -424,9 +424,18 @@ class _ExceptionSection extends StatelessWidget {
               children: [
                 FilledButton(
                   onPressed: () {
-                    // Async throw: routed via Flutter's uncaught-error pipeline.
+                    // Async error routed explicitly through PlatformDispatcher.onError
+                    // (the hook ExceptionWatcher installs). Flutter web's default zone
+                    // swallows raw microtask throws before they reach PlatformDispatcher;
+                    // calling onError directly works on both web and native VM.
                     Future<void>.microtask(() {
-                      throw StateError('async demo at ${DateTime.now()}');
+                      final error = StateError(
+                        'async demo at ${DateTime.now()}',
+                      );
+                      WidgetsBinding.instance.platformDispatcher.onError?.call(
+                        error,
+                        StackTrace.current,
+                      );
                     });
                   },
                   child: const Text('Async throw'),
@@ -448,7 +457,11 @@ class _ExceptionSection extends StatelessWidget {
                 OutlinedButton(
                   onPressed: () {
                     Future<void>.microtask(() {
-                      throw Exception('custom: ${DateTime.now()}');
+                      final error = Exception('custom: ${DateTime.now()}');
+                      WidgetsBinding.instance.platformDispatcher.onError?.call(
+                        error,
+                        StackTrace.current,
+                      );
                     });
                   },
                   child: const Text('Custom error'),
