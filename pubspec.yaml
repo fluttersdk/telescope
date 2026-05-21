@@ -22,7 +22,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  fluttersdk_artisan: ^0.0.2
+  fluttersdk_artisan: ^0.0.4
   logging: ^1.2.0
   meta: ^1.16.0
 

@@ -79,13 +79,11 @@ class TelescopeInstallCommand extends ArtisanCommand {
       stdout.write(scaffold.stdout);
       stderr.write(scaffold.stderr);
       if (scaffold.exitCode != 0) {
-        ctx.output
-            .error('install failed (exit ${scaffold.exitCode}).');
+        ctx.output.error('install failed (exit ${scaffold.exitCode}).');
         return scaffold.exitCode;
       }
     } else {
-      ctx.output.info(
-          'Consumer wrapper already present; skipping install.');
+      ctx.output.info('Consumer wrapper already present; skipping install.');
     }
 
     // 2. Register fluttersdk_telescope via plugin:install. Reads the
