@@ -89,12 +89,12 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Wrapper-presence branch: skip consumer:scaffold when wrapper exists
+    // Wrapper-presence branch: skip install when wrapper exists
     // -------------------------------------------------------------------------
 
     test(
-        'skips consumer:scaffold when bin/artisan.dart already exists; '
-        'plugin:install still runs', () async {
+        'skips install when bin/dispatcher.dart already exists; '
+        'plugin:install still runs via ./bin/fsa', () async {
       final runner = _RecordingRunner();
       TelescopeInstallCommand.processRunner = runner.run;
       TelescopeInstallCommand.wrapperExistsCheck = () => true;
@@ -109,21 +109,19 @@ void main() {
       expect(
           runner.calls.single,
           equals([
-            'dart',
-            'run',
-            'fluttersdk_artisan',
+            './bin/fsa',
             'plugin:install',
-            'fluttersdk_telescope'
+            'fluttersdk_telescope',
           ]));
     });
 
     // -------------------------------------------------------------------------
-    // Wrapper-missing branch: run consumer:scaffold then plugin:install
+    // Wrapper-missing branch: run install then plugin:install
     // -------------------------------------------------------------------------
 
     test(
-        'runs consumer:scaffold then plugin:install when bin/artisan.dart '
-        'is missing (correct ordering)', () async {
+        'runs install (via dart run) then plugin:install (via ./bin/fsa) '
+        'when bin/dispatcher.dart is missing (correct ordering)', () async {
       final runner = _RecordingRunner();
       TelescopeInstallCommand.processRunner = runner.run;
       TelescopeInstallCommand.wrapperExistsCheck = () => false;
@@ -135,18 +133,17 @@ void main() {
       expect(exit, equals(0));
       expect(runner.calls, hasLength(2));
       expect(runner.calls[0],
-          equals(['dart', 'run', 'fluttersdk_artisan', 'consumer:scaffold']),
-          reason: 'consumer:scaffold must run first');
+          equals(['dart', 'run', 'fluttersdk_artisan', 'install']),
+          reason: 'install must run first (scaffolds dispatcher.dart + fsa)');
       expect(
           runner.calls[1],
           equals([
-            'dart',
-            'run',
-            'fluttersdk_artisan',
+            './bin/fsa',
             'plugin:install',
-            'fluttersdk_telescope'
+            'fluttersdk_telescope',
           ]),
-          reason: 'plugin:install must run after scaffold');
+          reason:
+              'plugin:install must run after scaffold via the just-built fsa');
     });
 
     // -------------------------------------------------------------------------
@@ -155,7 +152,7 @@ void main() {
 
     test(
         'returns scaffold exit code (and skips plugin:install) when '
-        'consumer:scaffold fails', () async {
+        'install fails', () async {
       final runner = _RecordingRunner(exits: <int>[2]);
       TelescopeInstallCommand.processRunner = runner.run;
       TelescopeInstallCommand.wrapperExistsCheck = () => false;
@@ -168,7 +165,7 @@ void main() {
       expect(runner.calls, hasLength(1),
           reason:
               'plugin:install must not run after scaffold failure (fail-fast)');
-      expect(runner.calls.single.contains('consumer:scaffold'), isTrue);
+      expect(runner.calls.single.contains('install'), isTrue);
     });
 
     test(
@@ -218,11 +215,11 @@ Future<void> main() async {
 ''',
         );
 
-        // Stub subprocesses (consumer:scaffold + plugin:install) so the
+        // Stub subprocesses (install + plugin:install) so the
         // command flows straight into step 3 (lib/main.dart wiring).
         final runner = _RecordingRunner();
         TelescopeInstallCommand.processRunner = runner.run;
-        // Skip consumer:scaffold; only plugin:install will record.
+        // Skip install; only plugin:install will record.
         TelescopeInstallCommand.wrapperExistsCheck = () => true;
 
         // Switch cwd to the seeded temp dir so the source's relative

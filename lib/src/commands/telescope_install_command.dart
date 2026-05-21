@@ -6,11 +6,16 @@ import 'package:fluttersdk_artisan/artisan.dart';
 ///
 /// Runs the canonical install sequence in the consumer project:
 ///
-///   1. `dart run fluttersdk_artisan consumer:scaffold` (only when
-///      `bin/artisan.dart` is missing; idempotent skip otherwise).
-///   2. `dart run fluttersdk_artisan plugin:install fluttersdk_telescope`
-///      (always; the underlying plugin:install + plugins:refresh are
-///      idempotent so re-runs are safe).
+///   1. `dart run fluttersdk_artisan install` (only when
+///      `bin/dispatcher.dart` is missing; idempotent skip otherwise). This
+///      step produces `bin/dispatcher.dart`, `bin/fsa` (the AOT fast-cli),
+///      `lib/app/_plugins.g.dart`, and `lib/app/commands/_index.g.dart`.
+///   2. `./bin/fsa plugin:install fluttersdk_telescope` (always; the
+///      underlying plugin:install + plugins:refresh are idempotent so re-runs
+///      are safe). Uses fsa rather than `dart run fluttersdk_artisan ...`
+///      because the latter still looks for the legacy `bin/artisan.dart`
+///      wrapper file and rejects the new `bin/dispatcher.dart` layout
+///      produced by step 1.
 ///   3. Inject the runtime wiring into `lib/main.dart` via
 ///      [MainDartEditor]: imports plus the `kDebugMode`-gated
 ///      [TelescopePlugin.install] + [ExceptionWatcher] + [DumpWatcher]
@@ -52,11 +57,13 @@ class TelescopeInstallCommand extends ArtisanCommand {
           workingDirectory: workingDirectory, runInShell: false);
 
   /// Hook for tests to override the wrapper-presence check (default: real
-  /// `bin/artisan.dart` File existence in the cwd).
+  /// `bin/dispatcher.dart` File existence in the cwd). The dispatcher is the
+  /// canonical artisan v3 wrapper produced by `dart run fluttersdk_artisan
+  /// install`; the legacy `bin/artisan.dart` name no longer applies.
   static bool Function() wrapperExistsCheck = _defaultWrapperExistsCheck;
 
   static bool _defaultWrapperExistsCheck() =>
-      File('bin/artisan.dart').existsSync();
+      File('bin/dispatcher.dart').existsSync();
 
   @override
   Future<int> handle(ArtisanContext ctx) async {
@@ -64,35 +71,34 @@ class TelescopeInstallCommand extends ArtisanCommand {
     //    repeated `telescope:install` invocations on an already-bootstrapped
     //    project stay idempotent.
     if (!wrapperExistsCheck()) {
-      ctx.output.info('Consumer wrapper missing; running consumer:scaffold...');
+      ctx.output.info('Consumer wrapper missing; running install...');
       final scaffold = await processRunner(
         'dart',
-        ['run', 'fluttersdk_artisan', 'consumer:scaffold'],
+        ['run', 'fluttersdk_artisan', 'install'],
       );
       stdout.write(scaffold.stdout);
       stderr.write(scaffold.stderr);
       if (scaffold.exitCode != 0) {
         ctx.output
-            .error('consumer:scaffold failed (exit ${scaffold.exitCode}).');
+            .error('install failed (exit ${scaffold.exitCode}).');
         return scaffold.exitCode;
       }
     } else {
       ctx.output.info(
-          'Consumer wrapper already present; skipping consumer:scaffold.');
+          'Consumer wrapper already present; skipping install.');
     }
 
     // 2. Register fluttersdk_telescope via plugin:install. Reads the
     //    install.yaml manifest shipped in this package and writes the entry
     //    to .artisan/plugins.json + regenerates lib/app/_plugins.g.dart.
+    //    Invoked via ./bin/fsa (the AOT fast-cli scaffolded in step 1)
+    //    because `dart run fluttersdk_artisan plugin:install` still looks for
+    //    the legacy `bin/artisan.dart` wrapper and rejects the artisan v3
+    //    `bin/dispatcher.dart` layout produced by step 1's `install`.
     ctx.output.info('Registering fluttersdk_telescope via plugin:install...');
     final install = await processRunner(
-      'dart',
-      [
-        'run',
-        'fluttersdk_artisan',
-        'plugin:install',
-        'fluttersdk_telescope',
-      ],
+      './bin/fsa',
+      ['plugin:install', 'fluttersdk_telescope'],
     );
     stdout.write(install.stdout);
     stderr.write(install.stderr);
