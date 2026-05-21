@@ -17,32 +17,8 @@ at `test/telescope_artisan_provider_mcp_tools_test.dart` (direct child of `test/
 `_FakeWatcher`, `_NoOpAdapter`, `_RecordingStore` class inside the test file. Apply the extract-when-third-caller
 rule before moving fakes to a shared file.
 
-The `magic` dev dep is available for the integration tests under `test/src/magic/`. Those tests exercise
-`MagicEventWatcher`, `MagicGateWatcher`, `MagicModelWatcher`, `MagicCacheWatcher`, `MagicQueryWatcher`, and
-`MagicHttpFacadeAdapter` via magic's `EventDispatcher` and `TelescopeStore` directly. They do NOT spin up a real
-Flutter app or VM Service.
-
 No real VM Service connection in any test. Handler tests (`test/src/extensions/`) call the handler functions
 directly (they are `@visibleForTesting`) and assert on the returned `ServiceExtensionResponse` JSON.
-
-## Magic-integration test tagging
-
-Every file under `test/src/magic/` carries the library-level annotation:
-
-```dart
-@Tags(['magic'])
-library;
-
-import 'package:flutter_test/flutter_test.dart';
-// ... rest of the file
-```
-
-The `library;` directive is required because `@Tags` is a library-level annotation per `package:test`. Default CI
-runs `flutter test --exclude-tags=integration,magic`, so these tests are skipped unless the operator opts in via
-`flutter test --tags=magic` (requires `pubspec_overrides.yaml` to be active for magic path resolution).
-
-Do NOT use per-`test()` `@Tags(...)` annotations on individual tests. Library-level is the right granularity for
-this project; per-test tags fragment the gate and confuse the `--exclude-tags` shape.
 
 ## State isolation
 
@@ -92,7 +68,7 @@ Empty-buffer edge cases, capacity-overflow FIFO eviction, and chain-preserve pas
 
 ## Baseline + coverage gate
 
-`flutter test --exclude-tags=integration,magic` exits 0 with 307+ tests passing after the 0.0.1 release-prep
+`flutter test --exclude-tags=integration` exits 0 with 307+ tests passing after the 0.0.1 release-prep
 landing. Pre-existing unrelated failures are flagged in the PR description and not blocking per-step. Run the full
 suite once per wave before the wave's commit lands.
 
@@ -100,6 +76,6 @@ Coverage floor 80% enforced by CI (`.github/workflows/ci.yml`); current measurem
 changes, verify locally:
 
 ```bash
-flutter test --coverage --exclude-tags=integration,magic --timeout=30s
+flutter test --coverage --exclude-tags=integration --timeout=30s
 awk -F: '/^LF:/{lf+=$2} /^LH:/{lh+=$2} END{printf "%.2f%%\n", (lh/lf)*100}' coverage/lcov.info
 ```

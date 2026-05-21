@@ -6,13 +6,6 @@
 #   `flutter test --exclude-tags=integration`. Local devs run them on demand
 #   with `dart test --tags=integration` (a couple of minutes) before tagging a
 #   release.
-#
-# - `magic`: magic-stack integration tests requiring the magic dev-dependency.
-#   Tagged separately to allow opt-in testing with `dart test --tags=magic`
-#   and exclusion from default `flutter test` runs via
-#   `flutter test --exclude-tags=magic`.
 tags:
   integration:
-    timeout: 5x
-  magic:
     timeout: 5x
