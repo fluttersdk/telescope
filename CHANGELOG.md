@@ -8,24 +8,13 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-### Changed
-
-- `telescope:install` magic-detect branch now injects `import 'package:magic/telescope_integration.dart';` instead of `import 'package:magic/magic.dart';`. Pairs with magic 1.0.0-alpha.15 which extracts the integration class into a dedicated sub-barrel.
-
-### Removed
-
-- `magic: ^1.0.0-alpha` dev_dependency dropped. The package is now vanilla-Flutter clean with zero `magic` references in production or default-test surface. Magic-stack consumers continue to opt into `package:magic/telescope_integration.dart` from the magic repo via the install command's runtime detection.
-- `pubspec_overrides.yaml` file deleted. All three former path overrides (`fluttersdk_artisan`, `fluttersdk_dusk`, `magic`) are gone; artisan now resolves from pub.dev hosted (`^0.0.2`) and dusk + magic are no longer dev dependencies.
-- `test/src/magic/` integration test directory (6 files: `magic_cache_watcher_test.dart`, `magic_event_watcher_test.dart`, `magic_gate_watcher_test.dart`, `magic_http_facade_adapter_test.dart`, `magic_model_watcher_test.dart`, `magic_query_watcher_test.dart`) deleted. Magic-stack adapter and watcher contract regression now lives in the magic repo.
-- `dart_test.yaml` `magic` tag definition + 4-line comment block removed. The `integration` tag remains as the sole entry under `tags:`.
-- `--exclude-tags=integration,magic` reduced to `--exclude-tags=integration` in `.github/workflows/ci.yml` and `.github/workflows/publish.yml`. Agent-instruction files (`.github/copilot-instructions.md`, `.github/instructions/tests.instructions.md`, `.claude/rules/tests.md`) cleaned of magic-tag references in lockstep.
-- `example_magic/` example directory (154 files) deleted along with its `.pubignore` exclusion block; the vanilla `example/` directory stays as the sole example tree.
+_No unreleased changes yet._
 
 ---
 
-## [0.0.1] - 2026-05-20
+## [0.0.1] - 2026-05-22
 
-Initial public release of `fluttersdk_telescope`. Passive runtime inspector for Flutter apps with a framework-agnostic core and optional Magic-stack integration. Plugin of `fluttersdk_artisan` ^0.0.1.
+Initial public release of `fluttersdk_telescope`. Passive runtime inspector for Flutter apps with a framework-agnostic core and optional Magic-stack integration. Plugin of `fluttersdk_artisan` ^0.0.4 (hosted-only; no path overrides). Vanilla-Flutter clean: zero `magic` references in the production or default-test surface. Magic-stack integration is opt-in via runtime detection in `telescope:install`, which injects `import 'package:magic/telescope_integration.dart';` and an `if (kDebugMode) MagicTelescopeIntegration.install();` block after `await Magic.init(` when the consumer's pubspec lists `magic:`.
 
 ### Watchers
 
@@ -72,7 +61,7 @@ Per-buffer Queue<T> (O(1) ends) + StreamController<T>.broadcast() for live tail.
 
 ### CI + automated publishing
 
-- `.github/workflows/ci.yml`: format + analyze + flutter test (--exclude-tags integration,magic) + 80% line-coverage floor (lcov + awk gate) + codecov upload + dart pub publish --dry-run.
+- `.github/workflows/ci.yml`: format + analyze + flutter test (--exclude-tags integration) + 80% line-coverage floor (lcov + awk gate) + codecov upload + dart pub publish --dry-run.
 - `.github/workflows/publish.yml`: SemVer tag push triggers validate -> pub.dev publish via the official `dart-lang/setup-dart/.github/workflows/publish.yml@v1` reusable workflow with OIDC authentication + github-release job auto-extracting CHANGELOG entry.
 - `.github/dependabot.yml`: weekly pub root + weekly github-actions bumps.
 
@@ -91,4 +80,4 @@ Per-buffer Queue<T> (O(1) ends) + StreamController<T>.broadcast() for live tail.
 
 ### Test coverage
 
-307+ tests green at release time. 80% line coverage floor enforced in CI.
+249 tests green at release time across watchers, records, commands, extensions, and the artisan provider. 80% line coverage floor enforced in CI (current measured coverage 95.60%).
