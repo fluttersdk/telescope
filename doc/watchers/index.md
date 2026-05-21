@@ -321,14 +321,14 @@ if (kDebugMode) {
 | VM extension | `ext.telescope.events` |
 | Opt-out | Do not call `MagicTelescopeIntegration.install()` |
 
-Subscribes to the curated alpha-2 set of Magic app-lifecycle events: `AuthLogin`, `AuthLogout`,
-`AuthFailed`, `AuthRestored` (auth lifecycle), `DatabaseConnected` (database connection), and
-`GateAbilityDefined`, `GateBeforeRegistered` (gate definition). Model lifecycle events are excluded
-(owned by `MagicModelWatcher`) and gate-result events are excluded (owned by `MagicGateWatcher`) to
-keep each record on a single channel.
+Subscribes to a curated set of Magic app-lifecycle events: `AuthLogin`, `AuthLogout`, `AuthFailed`,
+`AuthRestored` (auth lifecycle), `DatabaseConnected` (database connection), and `GateAbilityDefined`,
+`GateBeforeRegistered` (gate definition). Model lifecycle events are excluded (owned by
+`MagicModelWatcher`) and gate-result events are excluded (owned by `MagicGateWatcher`) to keep each
+record on a single channel.
 
 Current payload is the empty map for every event type. Per-event field extraction is deferred to a
-follow-up alpha while the `EventRecord` wire shape stabilises.
+follow-up release while the `EventRecord` wire shape stabilises.
 
 Registration:
 

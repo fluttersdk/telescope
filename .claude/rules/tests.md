@@ -68,11 +68,11 @@ Empty-buffer edge cases, capacity-overflow FIFO eviction, and chain-preserve pas
 
 ## Baseline + coverage gate
 
-`flutter test --exclude-tags=integration` exits 0 with 307+ tests passing after the 0.0.1 release-prep
-landing. Pre-existing unrelated failures are flagged in the PR description and not blocking per-step. Run the full
-suite once per wave before the wave's commit lands.
+`flutter test --exclude-tags=integration` exits 0 with 249 tests passing after the magic-dev-dep drop. Pre-existing
+unrelated failures are flagged in the PR description and not blocking per-step. Run the full suite once per wave
+before the wave's commit lands.
 
-Coverage floor 80% enforced by CI (`.github/workflows/ci.yml`); current measurement 85.27%. After behavioral
+Coverage floor 80% enforced by CI (`.github/workflows/ci.yml`); current measurement 95.60%. After behavioral
 changes, verify locally:
 
 ```bash

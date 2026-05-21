@@ -27,7 +27,7 @@ makes `plugin:install fluttersdk_telescope` work end-to-end via the artisan Plug
 
 | Command | When |
 |---|---|
-| `flutter test` | Run all tests (baseline 307+ green after alpha-3). |
+| `flutter test` | Run all tests (baseline 249 green after the 0.0.1 release-prep + magic-dev-dep drop). |
 | `flutter test --coverage` | Generate coverage data; verify line coverage stays at or above 80%. |
 | `dart format lib/ test/` | Format. Must produce no diff. |
 | `dart analyze` | Static analysis. Zero issues required across `lib/` and `test/`. |
@@ -128,7 +128,7 @@ coordinated bump across both repos.
   `recordMagicCache`, `recordEvent`, `recordGate`, `recordDump`, `recordQuery` and their `recent*` / `on*Record`
   counterparts) are frozen; magic-side calls them directly.
 - No CLI command additions for events, gates, or dumps. MCP-only access for these three watchers is intentional;
-  CLI parity remains V1.x backlog. DB queries and caches do have CLI commands as of alpha-3.
+  CLI parity remains V1.x backlog. DB queries and caches do have CLI commands as of 0.0.1.
 - `install.yaml` manifest at the package root is required for `plugin:install fluttersdk_telescope`. Do not delete
   it; the V1 manifest carries the post-install bootstrap message and the `executables:` mapping anchor.
 - No new production dependencies beyond `fluttersdk_artisan`, `logging`, and `meta`. The vanilla example app may

@@ -259,7 +259,7 @@ cd telescope && dart pub get
 flutter test && dart analyze
 ```
 
-The baseline is 307+ tests green. New behavior ships with the matching test (red, green, refactor). `dart format lib/ test/ bin/` must produce no diff and `dart analyze` must report zero issues across `lib/`, `test/`, and `bin/`.
+The baseline is 249 tests green (post magic-dev-dep drop). New behavior ships with the matching test (red, green, refactor). `dart format lib/ test/ bin/` must produce no diff and `dart analyze` must report zero issues across `lib/`, `test/`, and `bin/`.
 
 Before opening a pull request, also run:
 

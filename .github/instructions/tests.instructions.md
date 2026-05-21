@@ -65,4 +65,4 @@ Reverting the production change in step 2 must turn the test back red. If revert
 
 ## Baseline
 
-`flutter test` exits 0 with 307+ tests passing after alpha-3. Pre-existing unrelated failures are flagged in the PR description and not blocking per-step. Run the full suite once per wave before the wave's commit lands.
+`flutter test` exits 0 with 249 tests passing after the magic-dev-dep drop. Pre-existing unrelated failures are flagged in the PR description and not blocking per-step. Run the full suite once per wave before the wave's commit lands.

@@ -30,7 +30,7 @@ artisan PluginInstaller.
 
 | Command | When |
 |---|---|
-| `flutter test --exclude-tags=integration --timeout=30s` | Default CI test runner. Excludes integration (slow subprocess) tags. Baseline 307+ green after alpha-3. |
+| `flutter test --exclude-tags=integration --timeout=30s` | Default CI test runner. Excludes integration (slow subprocess) tag. Baseline 249 green after the 0.0.1 release-prep + magic-dev-dep drop. |
 | `flutter test --coverage` | Produce `coverage/lcov.info` directly (no `coverage:format_coverage` post-process needed). |
 | `dart format lib/ test/ bin/` | Format. Must produce no diff. |
 | `dart analyze lib/ test/ bin/` | Static analysis. Zero issues required across `lib/`, `test/`, `bin/`. |
@@ -49,7 +49,7 @@ artisan PluginInstaller.
    `skills/fluttersdk-telescope/references/{watchers,mcp-tools}.md`. When a change shifts behavior the LLM-agent
    skill describes (watcher contract, ring-buffer surface, MCP tool input schemas, registration patterns), edit the
    matching reference file and update `SKILL.md` when the change affects the cached overview.
-3. **Test coverage stays at or above 80%**. Last measured: 85.27% line coverage (`coverage/lcov.info` pre-rework).
+3. **Test coverage stays at or above 80%**. Last measured: 95.60% line coverage (`coverage/lcov.info` after the magic-dev-dep drop).
    Verify after behavioral changes via `awk -F: '/^LF:/{lf+=$2} /^LH:/{lh+=$2} END{printf "%.2f%%\n", (lh/lf)*100}'
    coverage/lcov.info`. Drops below 80% block the change. CI enforces this floor via the awk gate in
    `.github/workflows/ci.yml`.
