@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/fluttersdk/magic/master/.github/magic-logo.svg" width="120" alt="Telescope Logo" />
+  <img src="https://raw.githubusercontent.com/fluttersdk/telescope/master/.github/telescope-logo.svg" width="120" alt="Telescope Logo" />
 </p>
 
 <h1 align="center">Telescope</h1>
