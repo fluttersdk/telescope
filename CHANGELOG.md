@@ -8,7 +8,9 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-_No unreleased changes yet._
+### Changed
+
+- **`telescope:install` no longer depends on the AOT-compiled `bin/fsa`.** The chained subprocess calls (`install` + `plugin:install fluttersdk_telescope`) now spawn `dart run fluttersdk_telescope ...` directly through the telescope CLI wrapper, mirroring the Cat C subprocess pattern landed in `fluttersdk_dusk`. Consumers on a clean checkout (where fsa has not been compiled yet) can complete the bootstrap chain without a `ProcessException: No such file or directory` failure. Surface unchanged for consumers who already have fsa scaffolded.
 
 ---
 
