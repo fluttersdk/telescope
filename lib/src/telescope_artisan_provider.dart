@@ -49,7 +49,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'size).\n'
               '- Pass `level: "<name>"` (e.g. `"WARNING"`, `"SEVERE"`) to '
               'filter by minimum log level; omit for all levels.\n'
-              '- Returns newest-first; pair with telescope_clear before a '
+              '- Returned oldest-first (last entry is newest); pair with telescope_clearbefore a '
               'repro to isolate just the relevant logs.\n'
               '- For HTTP traffic use telescope_requests; for crashes use '
               'telescope_exceptions; this tool covers general logs only.',
@@ -65,7 +65,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'limit': {
                 'type': 'integer',
                 'description': 'Maximum number of records to return '
-                    '(newest first). Omit for the whole buffer (cap '
+                    '(oldest-first; last entry is newest). Omit for the whole buffer (cap '
                     'enforced by the ring-buffer size, typically 200).',
               },
             },
@@ -88,7 +88,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'Usage:\n'
               '- Pass `limit: <n>` to cap the response size; default '
               'returns the whole buffer.\n'
-              '- Returns newest-first; pair with telescope_clear to '
+              '- Returned oldest-first (last entry is newest); pair with telescope_clearto '
               'isolate traffic from a specific user action.\n'
               '- Only HTTP calls that go through an installed Telescope '
               'adapter are recorded; raw `dart:io HttpClient` calls are '
@@ -99,7 +99,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'limit': {
                 'type': 'integer',
                 'description': 'Maximum number of HTTP records to return '
-                    '(newest first). Omit for the whole buffer.',
+                    '(oldest-first; last entry is newest). Omit for the whole buffer.',
               },
             },
           },
@@ -107,20 +107,22 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
         ),
         McpToolDescriptor(
           name: 'telescope_clear',
-          description: 'Clear every Telescope ring buffer (http, logs, '
-              'exceptions).\n'
+          description: 'Clear every Telescope ring buffer in one call.\n'
               '\n'
-              'Wipes the three ring buffers in one call so the next '
-              'telescope_tail / telescope_requests / telescope_exceptions '
-              'returns only records produced AFTER this clear. Useful as '
-              'a "set zero" before reproducing a bug or capturing the '
-              'output of a specific user action.\n'
+              'Wipes all 9 ring buffers atomically (http, logs, '
+              'exceptions, events, gates, dumps, queries, caches, magic '
+              'models) so the next telescope_* read returns only records '
+              'produced AFTER this clear. Useful as a "set zero" before '
+              'reproducing a bug or capturing the output of a specific '
+              'user action. Returns `{"cleared": true}` on success.\n'
               '\n'
               'Usage:\n'
-              '- No parameters; clears all three buffers atomically.\n'
+              '- No parameters; clears all 9 buffers in a single atomic '
+              'pass.\n'
               '- Idempotent: safe to call when buffers are already empty.\n'
-              '- Does NOT affect the live `package:logging` stream; only '
-              'the captured ring buffers.',
+              '- Does NOT affect the live `package:logging` stream or any '
+              'upstream sink (Sentry, Bugsnag); only the captured ring '
+              'buffers in the running app are wiped.',
           inputSchema: {'type': 'object', 'properties': <String, dynamic>{}},
           extensionMethod: 'ext.telescope.clear',
         ),
@@ -139,7 +141,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'Usage:\n'
               '- Pass `limit: <n>` to cap how many records come back '
               '(default returns the whole buffer).\n'
-              '- Returns newest-first.\n'
+              '- Returned oldest-first (last entry is newest).\n'
               '- Covers uncaught exceptions only; expected `try / catch` '
               'flows do not surface here. Pair with telescope_tail to '
               'see what the app logged around the crash.',
@@ -149,7 +151,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'limit': {
                 'type': 'integer',
                 'description': 'Maximum number of exception records to '
-                    'return (newest first). Omit for the whole buffer.',
+                    'return (oldest-first; last entry is newest). Omit for the whole buffer.',
               },
             },
           },
@@ -172,7 +174,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               '- Pass `limit: <n>` to cap how many records come back '
               '(default returns the whole buffer; cap is ring-buffer '
               'size).\n'
-              '- Returns newest-first; pair with telescope_clear before a '
+              '- Returned oldest-first (last entry is newest); pair with telescope_clearbefore a '
               'repro to isolate just the relevant event sequence.\n'
               '- Only events dispatched through the Magic `Event` facade '
               'are recorded; raw `ChangeNotifier.notifyListeners` calls '
@@ -185,7 +187,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'limit': {
                 'type': 'integer',
                 'description': 'Maximum number of event records to return '
-                    '(newest first). Omit for the whole buffer (cap '
+                    '(oldest-first; last entry is newest). Omit for the whole buffer (cap '
                     'enforced by the ring-buffer size, typically 500).',
               },
             },
@@ -208,7 +210,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'Usage:\n'
               '- Pass `limit: <n>` to cap how many records come back '
               '(default returns the whole buffer).\n'
-              '- Returns newest-first; pair with telescope_clear before '
+              '- Returned oldest-first (last entry is newest); pair with telescope_clearbefore '
               'walking a guarded flow to isolate just the relevant checks.\n'
               '- Only checks routed through the Magic `Gate` facade are '
               'recorded; direct policy class calls are not captured.\n'
@@ -220,7 +222,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'limit': {
                 'type': 'integer',
                 'description': 'Maximum number of gate check records to '
-                    'return (newest first). Omit for the whole buffer (cap '
+                    'return (oldest-first; last entry is newest). Omit for the whole buffer (cap '
                     'enforced by the ring-buffer size, typically 500).',
               },
             },
@@ -242,7 +244,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'Usage:\n'
               '- Pass `limit: <n>` to cap how many records come back '
               '(default returns the whole buffer).\n'
-              '- Returns newest-first; pair with telescope_clear before '
+              '- Returned oldest-first (last entry is newest); pair with telescope_clearbefore '
               'a repro to isolate just the relevant print output.\n'
               '- Only output routed through `debugPrint` (the global '
               'override point) is captured; `dart:io stdout.write` calls '
@@ -255,7 +257,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'limit': {
                 'type': 'integer',
                 'description': 'Maximum number of dump records to return '
-                    '(newest first). Omit for the whole buffer (cap '
+                    '(oldest-first; last entry is newest). Omit for the whole buffer (cap '
                     'enforced by the ring-buffer size, typically 500).',
               },
             },
@@ -277,7 +279,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'Usage:\n'
               '- Pass `limit: <n>` to cap how many records come back '
               '(default returns the whole buffer).\n'
-              '- Returns newest-first; pair with telescope_clear before '
+              '- Returned oldest-first (last entry is newest); pair with telescope_clearbefore '
               'a repro to isolate the queries from a specific user action.\n'
               '- Only queries that go through magic\'s QueryBuilder (and '
               'dispatch `QueryExecuted` via EventDispatcher) are recorded; '
@@ -290,7 +292,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'limit': {
                 'type': 'integer',
                 'description': 'Maximum number of query records to return '
-                    '(newest first). Omit for the whole buffer (cap '
+                    '(oldest-first; last entry is newest). Omit for the whole buffer (cap '
                     'enforced by the ring-buffer size, typically 500).',
               },
             },
@@ -312,7 +314,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'Usage:\n'
               '- Pass `limit: <n>` to cap how many records come back '
               '(default returns the whole buffer).\n'
-              '- Returns newest-first; pair with telescope_clear before '
+              '- Returned oldest-first (last entry is newest); pair with telescope_clearbefore '
               'a repro to isolate the cache traffic of a specific action.\n'
               '- Only Magic.Cache facade calls dispatch these events; raw '
               'driver-level cache calls bypass this tool.\n'
@@ -324,7 +326,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'limit': {
                 'type': 'integer',
                 'description': 'Maximum number of cache records to return '
-                    '(newest first). Omit for the whole buffer (cap '
+                    '(oldest-first; last entry is newest). Omit for the whole buffer (cap '
                     'enforced by the ring-buffer size, typically 500).',
               },
             },
