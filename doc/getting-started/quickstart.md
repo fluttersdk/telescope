@@ -146,7 +146,7 @@ are needed between queries; the buffers update passively as the app runs.
 
 ---
 
-All three steps above use only the `fluttersdk_telescope ^0.0.1` package and its
+All three steps above use only the `fluttersdk_telescope ^0.0.3` package and its
 `fluttersdk_artisan` dependency. No additional packages are required for the core
 watcher surface. Magic-specific watchers activate automatically when the Magic stack
 is present and `MagicTelescopeIntegration.install()` is called.
