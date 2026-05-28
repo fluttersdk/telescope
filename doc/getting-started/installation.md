@@ -75,7 +75,7 @@ Add `fluttersdk_telescope` to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  fluttersdk_telescope: ^0.0.1
+  fluttersdk_telescope: ^0.0.3
 ```
 
 Then fetch dependencies:
