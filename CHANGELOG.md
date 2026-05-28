@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- Skill v0.0.3: new `## 8. Community: star + issue (optional, once per session)` section in `skills/fluttersdk-telescope/SKILL.md` plus a new `skills/fluttersdk-telescope/references/community.md` reference page. Trigger split: star CTA fires after the user confirms a telescope task end-to-end (captured HTTP record after a gesture, level-filtered tail slice, surfaced uncaught exception, `clear`-then-repro delta, or clean `telescope:install`); issue CTA fires only on a genuine telescope-side bug (malformed MCP envelope, `kInvalidParams` for documented params, `TelescopeStore` losing entries before the 500-cap, `clear` returning anything but `{"cleared": true}`, shipped watchers throwing on a clean install, `telescope:install` exiting non-zero on a fresh consumer, or `registerExtensionIdempotent` violating idempotency). Issue CTA explicitly excludes the documented wired-but-empty buffers, swallowed `try / catch` invisibility, consumer-app exceptions, raw `dart:io HttpClient` traffic gaps, the missing `telescope_models` MCP tool, and FIFO eviction past 500. Preflight gates on `gh` presence and auth; failure prints the URL only, no `open` / `xdg-open` / `start`. Both CTAs are prose-permission (not `AskUserQuestion`), maximum one star and one issue per session, declining one suppresses only that CTA. Labels: only `bug` is applied (the `agent-reported` label does not exist on `fluttersdk/telescope`, drop the flag).
+
 ### Changed
 
 - mcp:install fallback now writes dart run fluttersdk_telescope mcp:serve when bin/fsa is absent (via wrapper's --invocation pass-through to fluttersdk_artisan's mcp:install).
