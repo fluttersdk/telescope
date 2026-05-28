@@ -40,6 +40,14 @@ the consumer's `./bin/fsa` (native AOT, ~110ms warm) is the recommended entry po
 4. **README + llms.txt sync**: Watchers / MCP Tools / CLI Commands tables in `README.md` stay in sync with `lib/src/watchers/`, `TelescopeArtisanProvider.mcpTools()`, and `TelescopeArtisanProvider.commands()` respectively.
 5. **CHANGELOG under `[Unreleased]`**: every behavioral or interface change lands a bullet under `## [Unreleased]` in `CHANGELOG.md`. Keep-a-Changelog ordering (Added, Changed, Deprecated, Removed, Fixed, Security). Promote to a dated section on tag push.
 6. **Green gate + TDD**: `dart format` zero diff + `dart analyze` zero issues + `flutter test --exclude-tags=integration` all green. Red-green-refactor for behavioral changes: failing test first.
+7. **GitHub Flow**: one long-lived branch `master` (released, what pub.dev resolves). Cut every task branch from `master`, push, open a PR back into `master`. Releases bump `pubspec.yaml`, promote `## [Unreleased]` in `CHANGELOG.md`, merge the bump PR, then tag the commit on `master`. No `develop` accumulator. See the Branching section below.
+
+## Branching
+
+- One long-lived branch: `master`. Direct pushes blocked by branch protection; everything lands via PR. Matches the flutter, dart-lang/sdk, dart-lang/pub, and Anthropic-ecosystem convention.
+- Task branches: cut from `master`, short kebab-case names (`feat/exception-watcher-stack-frames`, `fix/dump-watcher-leak`, `docs/cli-commands-section`). One topic per branch, PR back into `master`. Repo is squash-merge only; the head branch auto-deletes on merge.
+- Release: open a `release: X.Y.Z` PR from a topic branch that bumps `pubspec.yaml` `version:` and promotes `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` with the footer link. Merge, then `git tag X.Y.Z && git push origin X.Y.Z`. The tag triggers `.github/workflows/publish.yml` to push to pub.dev.
+- External contributors fork the repo and PR against `master` using the same shape.
 
 ## Architecture
 
