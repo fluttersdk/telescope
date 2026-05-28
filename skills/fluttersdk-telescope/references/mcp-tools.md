@@ -288,9 +288,11 @@ V1.
 ```
 
 **Capture surface:** global `debugPrint` override that chains the
-prior implementation. Flutter's own `print(...)` routes through
-`debugPrint` in debug builds, so plain `print("...")` lands here too.
-`dart:io stdout.write` and `stderr.write` do not.
+prior implementation. Only calls that go through the `debugPrint`
+callback are captured. Plain Dart `print(...)` does NOT route through
+`debugPrint`, so `print("...")` output is invisible to this buffer;
+callers must use `debugPrint(...)` to land in `telescope_dumps`. Raw
+`dart:io stdout.write` and `stderr.write` are also invisible.
 
 **Origin:** populated only when `DumpWatcher` is registered (opt-in
 via `TelescopePlugin.registerWatcher(DumpWatcher())`).
@@ -437,9 +439,13 @@ tools in V1. Reach for them only from Dart code via
   carries up to 500 records per buffer.
 
 - **Bad input is silent.** Invalid `limit` (non-numeric string)
-  coerces to null, returning the whole buffer. Invalid `level`
-  matches nothing, returning an empty array. No error envelope is
-  emitted; the handler always returns `ServiceExtensionResponse.result`.
+  coerces to null, returning the whole buffer. Invalid `level` (a name
+  not in the `package:logging` order list) is also lenient and returns
+  the whole buffer, not empty: `_meetsLevel` resolves the threshold
+  with `List.indexOf` and falls back to `-1` on a miss, so every
+  captured level (indices 0..7) passes the `actual >= min` check. No
+  error envelope is emitted; the handler always returns
+  `ServiceExtensionResponse.result`.
 
 - **Hot-restart safety.** All 11 extensions register via
   `registerExtensionIdempotent` from `fluttersdk_artisan`. Hot

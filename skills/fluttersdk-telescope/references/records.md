@@ -113,8 +113,11 @@ Inside `telescope_dumps` → `dumps[]`.
 | `time` | string (ISO 8601) | yes | |
 | `wrapWidth` | integer | opt | The `wrapWidth` argument when supplied. |
 
-`print("...")` and `debugPrint("...")` both produce records here; raw
-`dart:io stdout.write` does not.
+Only `debugPrint("...")` produces a record here. Plain Dart `print(...)`
+does NOT route through the `debugPrint` callback `DumpWatcher` overrides,
+so `print("...")` output is invisible to `telescope_dumps`; switch the
+call site to `debugPrint(...)` (or add a wrapper that forwards) when the
+agent needs to see it. Raw `dart:io stdout.write` is also invisible.
 
 ---
 

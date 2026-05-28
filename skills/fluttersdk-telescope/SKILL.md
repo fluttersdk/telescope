@@ -113,7 +113,7 @@ restart, and verify with `./bin/fsa telescope:tail`.
 | HTTP | `telescope_requests` | `telescope:requests` | Outbound HTTP via any installed `TelescopeHttpAdapter` (Magic's `MagicHttpFacadeAdapter`, vanilla `DioHttpAdapter`, custom). Raw `dart:io HttpClient` is invisible. |
 | Logs | `telescope_tail` | `telescope:tail` | Every `package:logging` Logger call. `LogWatcher` enables `hierarchicalLoggingEnabled = true` and sets `Logger.root.level = Level.ALL`, so nothing is filtered at capture. |
 | Exceptions | `telescope_exceptions` | (MCP only) | Uncaught exceptions only. Carries `exceptionType`, `message`, `time`, optional `stackTrace`, `isolate`. |
-| Dumps | `telescope_dumps` | (MCP only) | Every `debugPrint` call (global override). `print()` is also routed through `debugPrint` in Flutter, so `print("...")` lands here too. `dart:io stdout.write` does not. |
+| Dumps | `telescope_dumps` | (MCP only) | Every `debugPrint` call (global override, chain-preserves the previous handler). Plain Dart `print(...)` does NOT route through `debugPrint`, so `print("...")` is invisible here; callers must switch to `debugPrint(...)` to land in this buffer. `dart:io stdout.write` is also invisible. |
 | Events | `telescope_events` | (MCP only) | Events dispatched through Magic's `Event` facade. Raw `ChangeNotifier.notifyListeners` is invisible. |
 | Gates | `telescope_gates` | (MCP only) | Every `Gate.allows` / `Gate.denies` call (via `MagicGateWatcher`). Carries `ability`, `result` (bool), `arguments`, `userId`. |
 | Queries | `telescope_queries` | `telescope:queries` | DB queries through Magic's QueryBuilder via the `QueryExecuted` event. Raw `sqlite3` / `drift` bypasses this. |
