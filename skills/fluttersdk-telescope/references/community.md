@@ -108,11 +108,11 @@ A genuine telescope-side bug per SKILL.md Section 8. Before drafting, re-check t
 
    For larger bodies, write the draft to a temp file and instruct the user to paste it into the body field on the plain `/issues/new` URL.
 
-7. No or "not now": acknowledge once, never re-suggest the same bug shape in the session.
+7. No or "not now": acknowledge once, never re-suggest in the session (no second issue ask even on a different bug shape).
 
 ## Spam brakes (both flows)
 
-- Star at most once per session. Issue at most once per unique bug shape per session.
-- Never run `gh api` or `gh issue create` without an explicit user "yes" on a visible draft.
+- Star at most once per session. Issue at most once per session (one ask total, not one per bug shape). If a second telescope-side bug appears after the user already declined or already filed once, log a `Log.warning(...)` breadcrumb locally and stop, do not surface a fresh CTA. Matches the limit stated in SKILL.md Section 8 and the CHANGELOG.
+- Never call `gh issue create` without an explicit user "yes" on the visible draft body. For the star flow `gh api --method PUT /user/starred/...` only requires an explicit "yes" to the prose ask (no draft body exists to preview); never call the star API as a side effect of any other action.
 - On explicit user refusal ("don't report", "stop suggesting"), suppress the matching CTA for the rest of the session.
 - Labels: only `bug` is present on this repo. Do not invent labels. Do not pre-create `agent-reported` or any other label on the user's account; if labels evolve, the SKILL.md trigger row and this file update together.
