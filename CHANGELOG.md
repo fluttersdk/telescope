@@ -10,7 +10,12 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ### Changed
 
+- mcp:install fallback now writes dart run fluttersdk_telescope mcp:serve when bin/fsa is absent (via wrapper's --invocation pass-through to fluttersdk_artisan's mcp:install).
 - **`telescope:install` no longer depends on the AOT-compiled `bin/fsa`.** The chained subprocess calls (`install` + `plugin:install fluttersdk_telescope`) now spawn `dart run fluttersdk_telescope ...` directly through the telescope CLI wrapper, mirroring the Cat C subprocess pattern landed in `fluttersdk_dusk`. Consumers on a clean checkout (where fsa has not been compiled yet) can complete the bootstrap chain without a `ProcessException: No such file or directory` failure. **Behavior delta**: even consumers with `bin/fsa` scaffolded now invoke `plugin:install` through `dart run` (≈ a few seconds slower than the fsa AOT proxy on a single `telescope:install` invocation). Requires `dart` on `PATH` (always true on a Flutter dev box). Matches dusk's unconditional `dart run` pattern for cross-plugin consistency.
+
+### Fixed
+
+- bin/fluttersdk_telescope.dart now forces collectMcpTools: true when dispatching mcp:serve, so dart run fluttersdk_telescope mcp:serve surfaces all 9 telescope_* MCP tools. Previously returned 0 plugin tools.
 
 ---
 
