@@ -94,7 +94,8 @@ void main() {
 
     test(
         'skips install when bin/dispatcher.dart already exists; '
-        'plugin:install still runs via ./bin/fsa', () async {
+        'plugin:install still runs via dart run fluttersdk_telescope',
+        () async {
       final runner = _RecordingRunner();
       TelescopeInstallCommand.processRunner = runner.run;
       TelescopeInstallCommand.wrapperExistsCheck = () => true;
@@ -109,7 +110,9 @@ void main() {
       expect(
           runner.calls.single,
           equals([
-            './bin/fsa',
+            'dart',
+            'run',
+            'fluttersdk_telescope',
             'plugin:install',
             'fluttersdk_telescope',
           ]));
@@ -120,7 +123,7 @@ void main() {
     // -------------------------------------------------------------------------
 
     test(
-        'runs install (via dart run) then plugin:install (via ./bin/fsa) '
+        'runs install then plugin:install (both via dart run fluttersdk_telescope) '
         'when bin/dispatcher.dart is missing (correct ordering)', () async {
       final runner = _RecordingRunner();
       TelescopeInstallCommand.processRunner = runner.run;
@@ -133,17 +136,20 @@ void main() {
       expect(exit, equals(0));
       expect(runner.calls, hasLength(2));
       expect(runner.calls[0],
-          equals(['dart', 'run', 'fluttersdk_artisan', 'install']),
+          equals(['dart', 'run', 'fluttersdk_telescope', 'install']),
           reason: 'install must run first (scaffolds dispatcher.dart + fsa)');
       expect(
           runner.calls[1],
           equals([
-            './bin/fsa',
+            'dart',
+            'run',
+            'fluttersdk_telescope',
             'plugin:install',
             'fluttersdk_telescope',
           ]),
           reason:
-              'plugin:install must run after scaffold via the just-built fsa');
+              'plugin:install must run after scaffold via the telescope CLI '
+              'wrapper (no bin/fsa dependency at this stage)');
     });
 
     // -------------------------------------------------------------------------

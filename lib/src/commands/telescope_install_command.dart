@@ -6,16 +6,18 @@ import 'package:fluttersdk_artisan/artisan.dart';
 ///
 /// Runs the canonical install sequence in the consumer project:
 ///
-///   1. `dart run fluttersdk_artisan install` (only when
+///   1. `dart run fluttersdk_telescope install` (only when
 ///      `bin/dispatcher.dart` is missing; idempotent skip otherwise). This
 ///      step produces `bin/dispatcher.dart`, `bin/fsa` (the AOT fast-cli),
 ///      `lib/app/_plugins.g.dart`, and `lib/app/commands/_index.g.dart`.
-///   2. `./bin/fsa plugin:install fluttersdk_telescope` (always; the
-///      underlying plugin:install + plugins:refresh are idempotent so re-runs
-///      are safe). Uses fsa rather than `dart run fluttersdk_artisan ...`
-///      because the latter still looks for the legacy `bin/artisan.dart`
-///      wrapper file and rejects the new `bin/dispatcher.dart` layout
-///      produced by step 1.
+///   2. `dart run fluttersdk_telescope plugin:install fluttersdk_telescope`
+///      (always; the underlying plugin:install + plugins:refresh are
+///      idempotent so re-runs are safe). Routes through the telescope CLI
+///      wrapper (`bin/fluttersdk_telescope.dart`) which preloads
+///      `TelescopeArtisanProvider` and sets `delegateToConsumer: false`, so
+///      no `bin/fsa` AOT scaffold dependency exists at this stage and the
+///      consumer can complete the chain on a clean checkout where fsa has
+///      not been compiled yet.
 ///   3. Inject the runtime wiring into `lib/main.dart` via
 ///      [MainDartEditor]: imports plus the `kDebugMode`-gated
 ///      [TelescopePlugin.install] + [ExceptionWatcher] + [DumpWatcher]
@@ -74,7 +76,7 @@ class TelescopeInstallCommand extends ArtisanCommand {
       ctx.output.info('Consumer wrapper missing; running install...');
       final scaffold = await processRunner(
         'dart',
-        ['run', 'fluttersdk_artisan', 'install'],
+        ['run', 'fluttersdk_telescope', 'install'],
       );
       stdout.write(scaffold.stdout);
       stderr.write(scaffold.stderr);
@@ -89,14 +91,14 @@ class TelescopeInstallCommand extends ArtisanCommand {
     // 2. Register fluttersdk_telescope via plugin:install. Reads the
     //    install.yaml manifest shipped in this package and writes the entry
     //    to .artisan/plugins.json + regenerates lib/app/_plugins.g.dart.
-    //    Invoked via ./bin/fsa (the AOT fast-cli scaffolded in step 1)
-    //    because `dart run fluttersdk_artisan plugin:install` still looks for
-    //    the legacy `bin/artisan.dart` wrapper and rejects the artisan v3
-    //    `bin/dispatcher.dart` layout produced by step 1's `install`.
+    //    Invoked via `dart run fluttersdk_telescope` (the telescope CLI
+    //    wrapper which preloads `TelescopeArtisanProvider` and sets
+    //    `delegateToConsumer: false`) so the chain works on a clean
+    //    checkout without depending on the AOT-compiled `bin/fsa`.
     ctx.output.info('Registering fluttersdk_telescope via plugin:install...');
     final install = await processRunner(
-      './bin/fsa',
-      ['plugin:install', 'fluttersdk_telescope'],
+      'dart',
+      ['run', 'fluttersdk_telescope', 'plugin:install', 'fluttersdk_telescope'],
     );
     stdout.write(install.stdout);
     stderr.write(install.stderr);
