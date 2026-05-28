@@ -8,7 +8,13 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-_No unreleased changes yet._
+### Changed
+
+- mcp:install fallback now writes dart run fluttersdk_telescope mcp:serve when bin/fsa is absent (via wrapper's --invocation pass-through to fluttersdk_artisan's mcp:install).
+
+### Fixed
+
+- bin/fluttersdk_telescope.dart now forces collectMcpTools: true when dispatching mcp:serve, so dart run fluttersdk_telescope mcp:serve surfaces all 9 telescope_* MCP tools. Previously returned 0 plugin tools.
 
 ---
 
