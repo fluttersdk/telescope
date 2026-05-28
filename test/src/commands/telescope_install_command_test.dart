@@ -94,7 +94,8 @@ void main() {
 
     test(
         'skips install when bin/dispatcher.dart already exists; '
-        'plugin:install still runs via dart run fluttersdk_telescope', () async {
+        'plugin:install still runs via dart run fluttersdk_telescope',
+        () async {
       final runner = _RecordingRunner();
       TelescopeInstallCommand.processRunner = runner.run;
       TelescopeInstallCommand.wrapperExistsCheck = () => true;
