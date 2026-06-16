@@ -119,17 +119,17 @@ packages:
     dependency: transitive
     description:
       name: fluttersdk_artisan
-      sha256: "196e6fbd513036de002e70ac005d596f0837b91a70f09f64010fbad0b4b73122"
+      sha256: "008a29e38629ee1295a601fc9146d976ecf642b93e6dbe6750a9336ed4cac05c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.6"
+    version: "0.0.8"
   fluttersdk_telescope:
     dependency: "direct main"
     description:
       path: ".."
       relative: true
     source: path
-    version: "0.0.3"
+    version: "0.0.4"
   http_parser:
     dependency: transitive
     description:

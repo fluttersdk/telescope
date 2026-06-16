@@ -8,6 +8,12 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-06-17
+
+### Changed
+
+- **`fluttersdk_artisan` constraint bumped `^0.0.6` -> `^0.0.8`.** Required for co-installability with `fluttersdk_dusk` 0.0.7, which declares `fluttersdk_artisan: ^0.0.8`. Without this bump, a downstream package listing both `fluttersdk_dusk: ^0.0.7` and `fluttersdk_telescope` would fail pub dependency resolution. No public API change; constraint only.
+
 ## [0.0.3] - 2026-05-28
 
 ### Added
