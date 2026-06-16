@@ -191,15 +191,15 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Magic-stack branch: pubspec lists `magic:` + main.dart has
-    // `await Magic.init(` ; injected magic import must reference the new
-    // opt-in sub-barrel (`package:magic/telescope_integration.dart`), NOT the
-    // legacy main barrel (`package:magic/magic.dart`).
+    // Magic-stack branch: pubspec lists `magic_devtools:` + main.dart has
+    // `await Magic.init(` ; injected magic import must reference the
+    // magic_devtools telescope barrel (`package:magic_devtools/telescope.dart`),
+    // NOT the removed package:magic sub-barrel.
     // -------------------------------------------------------------------------
 
     test(
-      'magic-stack app: injects import for the telescope_integration sub-barrel '
-      '(not the legacy magic.dart main barrel) plus the integration install '
+      'magic-stack app: injects import for the magic_devtools telescope barrel '
+      '(not the removed package:magic sub-barrel) plus the integration install '
       'call after Magic.init',
       () async {
         final tempDir =
@@ -208,7 +208,7 @@ void main() {
 
         final mainDartPath = _seedProject(
           tempDir,
-          pubspecDeps: const {'magic': 'any'},
+          pubspecDeps: const {'magic': 'any', 'magic_devtools': 'any'},
           mainDartContents: '''
 import 'package:flutter/material.dart';
 import 'package:magic/magic.dart';
@@ -242,14 +242,15 @@ Future<void> main() async {
 
         final result = File(mainDartPath).readAsStringSync();
 
-        // The magic-detect branch (L187 ; _hasMagicDep + Magic.init anchor)
-        // must inject the opt-in sub-barrel; never the legacy main barrel.
+        // The magic-detect branch (_hasMagicDevtoolsDep + Magic.init anchor)
+        // must inject the magic_devtools telescope barrel; never the removed
+        // package:magic sub-barrel.
         expect(
-          result.contains("import 'package:magic/telescope_integration.dart';"),
+          result.contains("import 'package:magic_devtools/telescope.dart';"),
           isTrue,
           reason:
-              'magic-stack inject must reference the new telescope_integration '
-              'sub-barrel, not the legacy magic.dart main barrel',
+              'magic-stack inject must reference the magic_devtools telescope '
+              'barrel, not the removed package:magic sub-barrel',
         );
 
         // Parity check: the integration install call still lands after

@@ -21,7 +21,7 @@ import 'package:fluttersdk_artisan/artisan.dart';
 ///   3. Inject the runtime wiring into `lib/main.dart` via
 ///      [MainDartEditor]: imports plus the `kDebugMode`-gated
 ///      [TelescopePlugin.install] + [ExceptionWatcher] + [DumpWatcher]
-///      block before `runApp(`. When the consumer's pubspec lists `magic`
+///      block before `runApp(`. When the consumer's pubspec lists `magic_devtools`
 ///      as a dependency AND `lib/main.dart` contains an `await Magic.init(`
 ///      call, also injects `MagicTelescopeIntegration.install()` after it.
 ///      All steps idempotent; re-runs are no-ops.
@@ -133,7 +133,7 @@ class TelescopeInstallCommand extends ArtisanCommand {
   ///       the canonical install anchor: `await Magic.init(` on Magic-stack
   ///       apps (so ExceptionWatcher captures Magic boot errors), otherwise
   ///       `runApp(` for vanilla Flutter apps.
-  ///   3c. When pubspec has `magic:` AND main.dart has `await Magic.init(`,
+  ///   3c. When pubspec has `magic_devtools:` AND main.dart has `await Magic.init(`,
   ///       inject `MagicTelescopeIntegration.install()` after that call.
   static void _injectRuntimeWiring(ArtisanContext ctx, String mainDartPath) {
     ctx.output.info('Wiring TelescopePlugin into $mainDartPath...');
@@ -187,13 +187,13 @@ class TelescopeInstallCommand extends ArtisanCommand {
       FileHelper.writeFile(mainDartPath, source);
     }
 
-    // 3c. Magic-side coordinated wiring when the consumer pulls in magic.
-    //     Detect via pubspec.yaml; skip silently when magic is not a dep or
+    // 3c. Magic-side coordinated wiring when the consumer pulls in magic_devtools.
+    //     Detect via pubspec.yaml; skip silently when magic_devtools is not a dep or
     //     when main.dart has no Magic.init() anchor (vanilla Flutter app).
-    if (_hasMagicDep()) {
+    if (_hasMagicDevtoolsDep()) {
       MainDartEditor.addImport(
         mainDartPath,
-        "import 'package:magic/telescope_integration.dart';",
+        "import 'package:magic_devtools/telescope.dart';",
       );
       try {
         MainDartEditor.injectAfterMagicInit(
@@ -209,11 +209,12 @@ class TelescopeInstallCommand extends ArtisanCommand {
     }
   }
 
-  /// Returns true when the consumer's pubspec.yaml lists `magic:` as a
-  /// top-level dependency (2-space indent under `dependencies:`).
-  static bool _hasMagicDep() {
+  /// Returns true when the consumer's pubspec.yaml lists `magic_devtools:`
+  /// (the package that ships MagicTelescopeIntegration) as a dependency or
+  /// dev_dependency (2-space indent).
+  static bool _hasMagicDevtoolsDep() {
     final pubspec = File('pubspec.yaml');
     if (!pubspec.existsSync()) return false;
-    return RegExp(r'\n  magic:').hasMatch(pubspec.readAsStringSync());
+    return RegExp(r'\n  magic_devtools:').hasMatch(pubspec.readAsStringSync());
   }
 }

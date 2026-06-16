@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **`telescope:install` now injects `import 'package:magic_devtools/telescope.dart';` and gates the Magic-stack wiring on the `magic_devtools` dependency** instead of the removed `package:magic/telescope_integration.dart`. Coordinated with the `magic_devtools` extraction that moved `MagicTelescopeIntegration` out of the magic core package. The injected `MagicTelescopeIntegration.install()` call and all other wiring are unchanged.
+
 ## [0.0.4] - 2026-06-17
 
 ### Changed
