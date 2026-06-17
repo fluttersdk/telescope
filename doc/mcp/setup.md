@@ -46,14 +46,19 @@ the call before `Magic.init()` so the Http facade is wired in time:
 ```dart
 import 'package:flutter/foundation.dart';
 import 'package:fluttersdk_telescope/telescope.dart';
+import 'package:magic_devtools/telescope.dart'; // magic_devtools dev_dependency (Magic-stack apps only)
 
 Future<void> main() async {
   if (kDebugMode) {
     TelescopePlugin.install();
-    // Optional: when using the Magic framework, register its adapters and watchers.
-    // Call MagicTelescopeIntegration.install() after Magic.init().
   }
   await Magic.init(...);
+  if (kDebugMode) {
+    // Optional: when using the Magic framework, register its adapters and watchers.
+    // Call MagicTelescopeIntegration.install() after Magic.init(). Ships in the
+    // magic_devtools dev_dependency (import 'package:magic_devtools/telescope.dart').
+    MagicTelescopeIntegration.install();
+  }
   runApp(MagicApplication());
 }
 ```

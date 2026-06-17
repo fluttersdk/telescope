@@ -42,10 +42,11 @@ The command performs three operations in order:
    if it is missing. This is a no-op when the harness is already present.
 2. Runs `plugin:install fluttersdk_telescope`, which registers `TelescopeArtisanProvider`
    in `.artisan/plugins.json` and refreshes the codegen barrel.
-3. Patches `lib/main.dart` to call `TelescopePlugin.install()` before `runApp`. When using
-   the Magic framework, the patch places the call before `Magic.init()` so the Http facade
-   is wired before MagicTelescopeIntegration runs. The patch is wrapped in a `kDebugMode`
-   guard automatically.
+3. Patches `lib/main.dart` to call `TelescopePlugin.install()` before `runApp`. When the
+   consumer's `pubspec.yaml` lists `magic_devtools:` (as a dependency or dev_dependency) and
+   `lib/main.dart` contains `await Magic.init(`, the patch also injects
+   `import 'package:magic_devtools/telescope.dart';` plus a `MagicTelescopeIntegration.install()`
+   block after `Magic.init()`. All patches are wrapped in a `kDebugMode` guard automatically.
 
 The command is idempotent. Re-running it when the files are already patched is safe.
 
@@ -71,11 +72,17 @@ patch cannot locate the correct anchor in `lib/main.dart`.
 
 ### 1. Add the dependency
 
-Add `fluttersdk_telescope` to `pubspec.yaml`:
+Add `fluttersdk_telescope` to `pubspec.yaml`. For Magic-stack apps, also add `magic_devtools`
+to `dev_dependencies`: that package ships `MagicTelescopeIntegration` and the 5 Magic-specific
+watchers (previously part of the `magic` core package).
 
 ```yaml
 dependencies:
   fluttersdk_telescope: ^0.0.3
+
+# Magic-stack apps only:
+dev_dependencies:
+  magic_devtools: any
 ```
 
 Then fetch dependencies:
@@ -93,6 +100,7 @@ MagicTelescopeIntegration runs:
 ```dart
 import 'package:flutter/foundation.dart';
 import 'package:fluttersdk_telescope/telescope.dart';
+import 'package:magic_devtools/telescope.dart'; // magic_devtools dev_dependency (Magic-stack apps only)
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -112,7 +120,8 @@ void main() async {
 
   if (kDebugMode) {
     // 4. Magic-specific adapters resolve framework internals from the IoC container;
-    //    they must run after Magic.init().
+    //    they must run after Magic.init(). MagicTelescopeIntegration ships in
+    //    magic_devtools; add it to dev_dependencies alongside fluttersdk_telescope.
     MagicTelescopeIntegration.install();
   }
 

@@ -231,9 +231,12 @@ matching by call order.
 `pendingCount` returns the current length of the in-flight FIFO, surfaced into
 `TelescopeStore.pendingHttpCount` for Dusk's network-idle detection.
 
-Registration (via `MagicTelescopeIntegration`, the only documented entry point):
+Registration (via `MagicTelescopeIntegration`, the only documented entry point; ships in
+`magic_devtools` via `import 'package:magic_devtools/telescope.dart'`):
 
 ```dart
+import 'package:magic_devtools/telescope.dart';
+
 if (kDebugMode) {
   TelescopePlugin.install();
   MagicTelescopeIntegration.install(); // registers MagicHttpFacadeAdapter + 5 watchers
@@ -247,9 +250,10 @@ if (kDebugMode) {
 
 ## Magic-stack watchers
 
-These five watchers are shipped inside the `magic` package via `MagicTelescopeIntegration`. They
-are not part of the `fluttersdk_telescope` core. All five are registered by a single
-`MagicTelescopeIntegration.install()` call.
+These five watchers are shipped inside the `magic_devtools` package via `MagicTelescopeIntegration`.
+They are not part of the `fluttersdk_telescope` core and are not part of the `magic` core package.
+All five are registered by a single `MagicTelescopeIntegration.install()` call. Add `magic_devtools`
+to `dev_dependencies` and import `package:magic_devtools/telescope.dart` to use them.
 
 ### MagicModelWatcher
 
@@ -257,6 +261,7 @@ are not part of the `fluttersdk_telescope` core. All five are registered by a si
 |---|---|
 | Contract | `TelescopeWatcher` |
 | Name | `magic_model` |
+| Package | `magic_devtools` (import `package:magic_devtools/telescope.dart`) |
 | Auto-install | Yes (via `MagicTelescopeIntegration.install()`) |
 | Ring buffer | `TelescopeStore._models` |
 | VM extension | `ext.telescope.requests` (via models key; MCP tool: `telescope_models`) |
@@ -270,6 +275,8 @@ and `attributes` (snapshot of `model.attributes` at capture time).
 Registration:
 
 ```dart
+import 'package:magic_devtools/telescope.dart';
+
 if (kDebugMode) {
   TelescopePlugin.install();
   MagicTelescopeIntegration.install(); // MagicModelWatcher is included
@@ -287,6 +294,7 @@ clean dispatcher call `EventDispatcher.instance.clear()` in their `setUp`.
 |---|---|
 | Contract | `TelescopeWatcher` |
 | Name | `magic_cache` |
+| Package | `magic_devtools` (import `package:magic_devtools/telescope.dart`) |
 | Auto-install | Yes (via `MagicTelescopeIntegration.install()`) |
 | Ring buffer | `TelescopeStore._caches` |
 | VM extension | `ext.telescope.caches` |
@@ -300,6 +308,8 @@ Subscribes to five cache lifecycle events emitted by Magic's `CacheManager`: `Ca
 Registration:
 
 ```dart
+import 'package:magic_devtools/telescope.dart';
+
 if (kDebugMode) {
   TelescopePlugin.install();
   MagicTelescopeIntegration.install(); // MagicCacheWatcher is included
@@ -316,6 +326,7 @@ if (kDebugMode) {
 |---|---|
 | Contract | `TelescopeWatcher` |
 | Name | `magic_event` |
+| Package | `magic_devtools` (import `package:magic_devtools/telescope.dart`) |
 | Auto-install | Yes (via `MagicTelescopeIntegration.install()`) |
 | Ring buffer | `TelescopeStore._events` |
 | VM extension | `ext.telescope.events` |
@@ -333,6 +344,8 @@ follow-up release while the `EventRecord` wire shape stabilises.
 Registration:
 
 ```dart
+import 'package:magic_devtools/telescope.dart';
+
 if (kDebugMode) {
   TelescopePlugin.install();
   MagicTelescopeIntegration.install(); // MagicEventWatcher is included
@@ -349,6 +362,7 @@ if (kDebugMode) {
 |---|---|
 | Contract | `TelescopeWatcher` |
 | Name | `magic_gate` |
+| Package | `magic_devtools` (import `package:magic_devtools/telescope.dart`) |
 | Auto-install | Yes (via `MagicTelescopeIntegration.install()`) |
 | Ring buffer | `TelescopeStore._gates` |
 | VM extension | `ext.telescope.gates` |
@@ -369,6 +383,8 @@ anything else falls back to `toString()`.
 Registration:
 
 ```dart
+import 'package:magic_devtools/telescope.dart';
+
 if (kDebugMode) {
   TelescopePlugin.install();
   MagicTelescopeIntegration.install(); // MagicGateWatcher is included
@@ -385,6 +401,7 @@ if (kDebugMode) {
 |---|---|
 | Contract | `TelescopeWatcher` |
 | Name | `magic_query` |
+| Package | `magic_devtools` (import `package:magic_devtools/telescope.dart`) |
 | Auto-install | Yes (via `MagicTelescopeIntegration.install()`) |
 | Ring buffer | `TelescopeStore._queries` |
 | VM extension | `ext.telescope.queries` |
@@ -400,6 +417,8 @@ Surfaced via the `telescope:queries` CLI command and the `telescope_queries` MCP
 Registration:
 
 ```dart
+import 'package:magic_devtools/telescope.dart';
+
 if (kDebugMode) {
   TelescopePlugin.install();
   MagicTelescopeIntegration.install(); // MagicQueryWatcher is included

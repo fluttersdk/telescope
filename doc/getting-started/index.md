@@ -52,7 +52,7 @@ Out of the box after `telescope:install`, Telescope captures:
 - **Exceptions**: uncaught errors via `ExceptionWatcher` (opt-in, chain-preserves Sentry/Bugsnag).
 - **debugPrint output**: via `DumpWatcher` (opt-in, chain-preserves prior override).
 
-With the Magic stack (`MagicTelescopeIntegration.install()`):
+With the Magic stack (`MagicTelescopeIntegration.install()` from `magic_devtools`):
 
 - **HTTP traffic** through the Magic `Http` facade.
 - **Model lifecycle**: create, save, delete events on Magic Eloquent models.

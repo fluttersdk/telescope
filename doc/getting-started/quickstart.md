@@ -27,13 +27,17 @@ looks like:
 ```
 [plugin:install] registered TelescopeArtisanProvider
 [main.dart]      injected TelescopePlugin.install() before framework init
-[main.dart]      injected MagicTelescopeIntegration.install() after Magic.init() (when using Magic framework)
+[main.dart]      injected import 'package:magic_devtools/telescope.dart';
+[main.dart]      injected MagicTelescopeIntegration.install() after Magic.init() (when magic_devtools is in pubspec)
 telescope:install done
 ```
 
-When using the Magic framework, `MagicTelescopeIntegration.install()` is also injected after
-`Magic.init()` so all 9 watchers activate automatically. On a vanilla Flutter app only
-the core watchers (`LogWatcher`, plus any you opt into manually) are wired.
+When the consumer's `pubspec.yaml` lists `magic_devtools:` and `lib/main.dart` contains
+`await Magic.init(`, the install command also injects the `package:magic_devtools/telescope.dart`
+import and a `MagicTelescopeIntegration.install()` block after `Magic.init()` so all 9 watchers
+activate automatically. `MagicTelescopeIntegration` ships in the `magic_devtools` package (not in
+the `magic` core). On a vanilla Flutter app only the core watchers (`LogWatcher`, plus any you opt
+into manually) are wired.
 
 Verify the provider registered correctly. From now on, the artisan fast-cli at `./bin/fsa`
 (native AOT, ~110ms warm) is the recommended entry point for every subsequent command:
@@ -148,5 +152,7 @@ are needed between queries; the buffers update passively as the app runs.
 
 All three steps above use only the `fluttersdk_telescope ^0.0.3` package and its
 `fluttersdk_artisan` dependency. No additional packages are required for the core
-watcher surface. Magic-specific watchers activate automatically when the Magic stack
-is present and `MagicTelescopeIntegration.install()` is called.
+watcher surface. Magic-specific watchers activate automatically when `magic_devtools`
+is in `dev_dependencies` and `MagicTelescopeIntegration.install()` is called after
+`Magic.init()`. `MagicTelescopeIntegration` ships in `magic_devtools`, not in the
+`magic` core package.

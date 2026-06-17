@@ -8,19 +8,20 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-### Fixed
-
-- **`telescope:install` no longer injects the `magic_devtools` import when `lib/main.dart` has no `await Magic.init(` anchor.** Previously, the magic-side wiring block fired for any project that listed `magic_devtools` in pubspec regardless of whether the app called `Magic.init`. On a vanilla Flutter app this left an unused import that broke `dart analyze` in the consumer. The block is now gated on `hasMagicInit && _hasMagicDevtoolsDep()` so the import and `MagicTelescopeIntegration.install()` call are only injected for Magic-stack apps that actually call `Magic.init`. The existing try/catch around `injectAfterMagicInit` is retained as a defensive backstop.
-
-### Changed
-
-- **`telescope:install` now injects `import 'package:magic_devtools/telescope.dart';` and gates the Magic-stack wiring on the `magic_devtools` dependency** instead of the removed `package:magic/telescope_integration.dart`. Coordinated with the `magic_devtools` extraction that moved `MagicTelescopeIntegration` out of the magic core package. The injected `MagicTelescopeIntegration.install()` call and all other wiring are unchanged.
-
 ## [0.0.4] - 2026-06-17
 
 ### Changed
 
 - **`fluttersdk_artisan` constraint bumped `^0.0.6` -> `^0.0.8`.** Required for co-installability with `fluttersdk_dusk` 0.0.7, which declares `fluttersdk_artisan: ^0.0.8`. Without this bump, a downstream package listing both `fluttersdk_dusk: ^0.0.7` and `fluttersdk_telescope` would fail pub dependency resolution. No public API change; constraint only.
+- **`telescope:install` now injects `import 'package:magic_devtools/telescope.dart';` and gates the Magic-stack wiring on the `magic_devtools` dependency** instead of the removed `package:magic/telescope_integration.dart`. Coordinated with the `magic_devtools` extraction that moved `MagicTelescopeIntegration` (plus the 5 Magic watchers and `MagicHttpFacadeAdapter`) out of the magic core package. The injected `MagicTelescopeIntegration.install()` call and all other wiring are unchanged.
+
+### Fixed
+
+- **`telescope:install` no longer injects the `magic_devtools` import when `lib/main.dart` has no `await Magic.init(` anchor.** Previously, the magic-side wiring block fired for any project that listed `magic_devtools` in pubspec regardless of whether the app called `Magic.init`. On a vanilla Flutter app this left an unused import that broke `dart analyze` in the consumer. The block is now gated on `hasMagicInit && _hasMagicDevtoolsDep()` so the import and `MagicTelescopeIntegration.install()` call are only injected for Magic-stack apps that actually call `Magic.init`. The existing try/catch around `injectAfterMagicInit` is retained as a defensive backstop.
+
+### Documentation
+
+- Synced docs, skill files, `README.md`, and `CLAUDE.md` to the `magic_devtools` extraction and the `fluttersdk_artisan ^0.0.8` bump. The Magic-stack telescope adapter is now documented as shipping in `magic_devtools` (imported via `package:magic_devtools/telescope.dart`, added as a dev_dependency); the installation / quickstart / watchers pages, the MCP setup snippet, and the skill (`SKILL.md` + references) reflect the `magic_devtools` dependency gate and import.
 
 ## [0.0.3] - 2026-05-28
 

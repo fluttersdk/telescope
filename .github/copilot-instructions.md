@@ -7,11 +7,11 @@ Guidance for Claude Code working in the `fluttersdk_telescope` repo. Path-scoped
 
 ## Stack
 
-Flutter SDK package (Dart 3.4+, Flutter 3.22+). Plugin of `fluttersdk_artisan ^0.0.6`: contributes
+Flutter SDK package (Dart 3.4+, Flutter 3.22+). Plugin of `fluttersdk_artisan ^0.0.8`: contributes
 `TelescopeArtisanProvider` with 6 CLI commands plus 9 MCP tools backed by 11 `ext.telescope.*` VM Service
 extensions.
 
-Production deps are hosted only (no `pubspec_overrides.yaml`): `fluttersdk_artisan ^0.0.6`, `logging ^1.2.0`,
+Production deps are hosted only (no `pubspec_overrides.yaml`): `fluttersdk_artisan ^0.0.8`, `logging ^1.2.0`,
 `meta ^1.16.0`. Dev deps: `flutter_test`, `flutter_lints ^5.0.0`. Debug-only at the consumer call site: the
 consumer wraps `TelescopePlugin.install()` in `if (kDebugMode)` so release builds tree-shake the subsystem.
 

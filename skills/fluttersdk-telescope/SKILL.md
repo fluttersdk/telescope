@@ -37,7 +37,9 @@ restart, and verify with `./bin/fsa telescope:tail`.
    Magic-stack apps must additionally call
    `MagicTelescopeIntegration.install()` after `Magic.init()` to
    populate the HTTP, events, gates, queries, and magic-cache buffers
-   (and to expose `pendingCount` for dusk's network-idle gate). When
+   (and to expose `pendingCount` for dusk's network-idle gate).
+   `MagicTelescopeIntegration` ships in the `magic_devtools` package
+   (import `package:magic_devtools/telescope.dart`), not in `magic` core. When
    `telescope_requests` returns `{"records": []}` on a known-active app,
    suspect a missing adapter, not a quiet app. The CLI gives the same
    hint inline: `"No HTTP records (register a TelescopeHttpAdapter)."`,
@@ -240,6 +242,8 @@ dart run fluttersdk_telescope telescope:install
 by `if (kDebugMode)` so release builds tree-shake the entire block:
 
 ```dart
+import 'package:magic_devtools/telescope.dart'; // magic_devtools dev_dependency
+
 if (kDebugMode) {
   TelescopePlugin.install();
   TelescopePlugin.registerWatcher(ExceptionWatcher());
@@ -249,7 +253,7 @@ if (kDebugMode) {
 await Magic.init([...]);
 
 if (kDebugMode) {
-  MagicTelescopeIntegration.install();   // only when magic is in pubspec
+  MagicTelescopeIntegration.install();   // only when magic_devtools is in pubspec
 }
 ```
 
