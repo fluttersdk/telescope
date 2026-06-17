@@ -190,7 +190,7 @@ class TelescopeInstallCommand extends ArtisanCommand {
     // 3c. Magic-side coordinated wiring when the consumer pulls in magic_devtools.
     //     Detect via pubspec.yaml; skip silently when magic_devtools is not a dep or
     //     when main.dart has no Magic.init() anchor (vanilla Flutter app).
-    if (_hasMagicDevtoolsDep()) {
+    if (hasMagicInit && _hasMagicDevtoolsDep()) {
       MainDartEditor.addImport(
         mainDartPath,
         "import 'package:magic_devtools/telescope.dart';",
@@ -210,8 +210,8 @@ class TelescopeInstallCommand extends ArtisanCommand {
   }
 
   /// Returns true when the consumer's pubspec.yaml lists `magic_devtools:`
-  /// (the package that ships MagicTelescopeIntegration) as a dependency or
-  /// dev_dependency (2-space indent).
+  /// (the package that ships MagicTelescopeIntegration) under `dependencies:`
+  /// or `dev_dependencies:` (2-space indent).
   static bool _hasMagicDevtoolsDep() {
     final pubspec = File('pubspec.yaml');
     if (!pubspec.existsSync()) return false;

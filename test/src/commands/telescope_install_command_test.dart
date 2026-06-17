@@ -267,5 +267,75 @@ Future<void> main() async {
         expect(runner.calls.single.contains('plugin:install'), isTrue);
       },
     );
+
+    // -------------------------------------------------------------------------
+    // Vanilla app with magic_devtools in pubspec but NO Magic.init anchor:
+    // the magic-side import must NOT be injected (would be an unused import
+    // that breaks `dart analyze` in the consumer).
+    // -------------------------------------------------------------------------
+
+    test(
+      'vanilla app with magic_devtools dep but no Magic.init anchor: '
+      'must NOT inject the magic_devtools import or MagicTelescopeIntegration.install()',
+      () async {
+        final tempDir = Directory.systemTemp
+            .createTempSync('telescope_install_vanilla_magic_dep_');
+        addTearDown(() => tempDir.deleteSync(recursive: true));
+
+        final mainDartPath = _seedProject(
+          tempDir,
+          // magic_devtools is listed as a dep but the app has no Magic.init.
+          pubspecDeps: const {'magic_devtools': 'any'},
+          mainDartContents: '''
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+''',
+        );
+
+        final runner = _RecordingRunner();
+        TelescopeInstallCommand.processRunner = runner.run;
+        TelescopeInstallCommand.wrapperExistsCheck = () => true;
+
+        final previousCwd = Directory.current;
+        Directory.current = tempDir;
+        addTearDown(() => Directory.current = previousCwd);
+
+        final exit = await TelescopeInstallCommand().handle(
+          ArtisanContext.bare(MapInput(const {}), BufferedOutput()),
+        );
+        expect(exit, equals(0));
+
+        final result = File(mainDartPath).readAsStringSync();
+
+        // The magic_devtools import must NOT appear: injecting it without a
+        // Magic.init call would leave it unused and break `dart analyze`.
+        expect(
+          result.contains("import 'package:magic_devtools/telescope.dart';"),
+          isFalse,
+          reason:
+              'no Magic.init anchor means there is no MagicTelescopeIntegration '
+              'call site; the import would be unused and break dart analyze',
+        );
+
+        // The integration install call must NOT appear either.
+        expect(
+          result.contains('MagicTelescopeIntegration.install();'),
+          isFalse,
+          reason:
+              'MagicTelescopeIntegration.install() has nowhere to land without '
+              'a Magic.init anchor; it must not be injected',
+        );
+
+        // The vanilla TelescopePlugin wiring must still be present (unaffected).
+        expect(
+          result.contains('TelescopePlugin.install();'),
+          isTrue,
+          reason: 'vanilla wiring is unconditional and must still be injected',
+        );
+      },
+    );
   });
 }

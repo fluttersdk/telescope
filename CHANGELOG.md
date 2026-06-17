@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`telescope:install` no longer injects the `magic_devtools` import when `lib/main.dart` has no `await Magic.init(` anchor.** Previously, the magic-side wiring block fired for any project that listed `magic_devtools` in pubspec regardless of whether the app called `Magic.init`. On a vanilla Flutter app this left an unused import that broke `dart analyze` in the consumer. The block is now gated on `hasMagicInit && _hasMagicDevtoolsDep()` so the import and `MagicTelescopeIntegration.install()` call are only injected for Magic-stack apps that actually call `Magic.init`. The existing try/catch around `injectAfterMagicInit` is retained as a defensive backstop.
+
 ### Changed
 
 - **`telescope:install` now injects `import 'package:magic_devtools/telescope.dart';` and gates the Magic-stack wiring on the `magic_devtools` dependency** instead of the removed `package:magic/telescope_integration.dart`. Coordinated with the `magic_devtools` extraction that moved `MagicTelescopeIntegration` out of the magic core package. The injected `MagicTelescopeIntegration.install()` call and all other wiring are unchanged.
