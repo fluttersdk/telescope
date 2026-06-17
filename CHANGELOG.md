@@ -21,7 +21,7 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ### Documentation
 
-- Synced docs, skill files, `README.md`, and `CLAUDE.md` to the `magic_devtools` extraction and the `fluttersdk_artisan ^0.0.8` bump. The Magic-stack telescope adapter is now documented as shipping in `magic_devtools` (imported via `package:magic_devtools/telescope.dart`, added as a dev_dependency); the installation / quickstart / watchers pages, the MCP setup snippet, and the skill (`SKILL.md` + references) reflect the `magic_devtools` dependency gate and import.
+- Synced docs, skill files, `README.md`, and `CLAUDE.md` to the `magic_devtools` extraction and the `fluttersdk_artisan ^0.0.8` bump. The Magic-stack telescope adapter is now documented as shipping in `magic_devtools` (imported via `package:magic_devtools/telescope.dart`, added as a dev_dependency); the installation / quickstart / watchers pages, the MCP setup snippet, and the skill (`SKILL.md` + references) reflect the `magic_devtools` dependency gate and import. Dependency-version pins bumped from `^0.0.3` to `^0.0.4` across `README.md`, `doc/getting-started/installation.md`, `doc/getting-started/quickstart.md`, and `doc/mcp/setup.md`; skill version stamp bumped to 0.0.4.
 
 ## [0.0.3] - 2026-05-28
 

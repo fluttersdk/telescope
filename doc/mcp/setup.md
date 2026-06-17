@@ -18,7 +18,7 @@ because `TelescopePlugin` is imported by `lib/main.dart`):
 ```yaml
 # pubspec.yaml
 dependencies:
-  fluttersdk_telescope: ^0.0.3
+  fluttersdk_telescope: ^0.0.4
 ```
 
 Run `dart pub get` after editing.

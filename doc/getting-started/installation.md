@@ -78,7 +78,7 @@ watchers (previously part of the `magic` core package).
 
 ```yaml
 dependencies:
-  fluttersdk_telescope: ^0.0.3
+  fluttersdk_telescope: ^0.0.4
 
 # Magic-stack apps only:
 dev_dependencies:
