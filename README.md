@@ -53,7 +53,7 @@ After install, the consumer gets the artisan fast-cli at `./bin/fsa` (native AOT
 | 🔌 | **Adapter Contract** | `TelescopeHttpAdapter` (abstract, 3-method shape) for plugging any HTTP client; ships `DioHttpAdapter` for vanilla Dio |
 | 📋 | **9 Record Types** | Immutable: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord` |
 | 📡 | **VM Service Extensions** | 11 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.clear`, `.pause`, `.resume` |
-| ✨ | **Magic Integration** | `MagicTelescopeIntegration.install()` wires Http facade adapter + model/cache/event/gate watchers in one call |
+| ✨ | **Magic Integration** | `MagicTelescopeIntegration.install()` wires Http facade adapter + model/cache/event/gate watchers in one call (ships in the `magic_devtools` dev_dependency) |
 | 🔒 | **Debug-only Gate** | Consumer wraps install inside `if (kDebugMode)`; release builds tree-shake the entire telescope branch on all platforms |
 | 🔄 | **Idempotent Install** | Every `registerExtension` call routes through `registerExtensionIdempotent`; hot-restart safe, no `ArgumentError` on re-registration |
 
@@ -86,7 +86,7 @@ For everyday repeat usage, the consumer's `./bin/fsa` (artisan native AOT binary
 ```yaml
 # pubspec.yaml
 dependencies:
-  fluttersdk_telescope: ^0.0.3
+  fluttersdk_telescope: ^0.0.4
 ```
 
 #### 2. Install in `main.dart`
@@ -96,6 +96,7 @@ Install Telescope before `Magic.init()` (or before `runApp` for plain Flutter). 
 ```dart
 import 'package:flutter/foundation.dart';
 import 'package:fluttersdk_telescope/telescope.dart';
+import 'package:magic_devtools/telescope.dart'; // magic_devtools dev_dependency (Magic-stack apps only)
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -114,6 +115,8 @@ void main() async {
   await Magic.init(configFactories: [...]);
 
   if (kDebugMode) {
+    // MagicTelescopeIntegration ships in magic_devtools (not magic core).
+    // Add magic_devtools to dev_dependencies in pubspec.yaml.
     MagicTelescopeIntegration.install();
   }
 
