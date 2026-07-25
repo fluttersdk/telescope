@@ -37,7 +37,7 @@ dependencies:
   fluttersdk_telescope:
     path: ../
     version: 0.0.4
-  dio: ^5.7.0
+  dio: ^5.10.0
   logging: ^1.2.0
 
 dev_dependencies:
