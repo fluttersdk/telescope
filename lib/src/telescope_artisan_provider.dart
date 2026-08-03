@@ -66,7 +66,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
                 'type': 'integer',
                 'description': 'Maximum number of records to return '
                     '(oldest-first; last entry is newest). Omit for the whole buffer (cap '
-                    'enforced by the ring-buffer size, typically 200).',
+                    'enforced by the ring-buffer size, typically 500).',
               },
             },
           },

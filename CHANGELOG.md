@@ -8,6 +8,15 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **The registry dispatch fires on a published release now, not on every push that touches the skill.** Under the push trigger `fluttersdk/ai` climbed to v1.3.75, and most of those releases re-published identical skill content: a docs commit and a release commit each cost the registry a version. The registry version now tracks published telescope releases instead of counting commits. `workflow_dispatch` stays as the manual escape hatch when a skill fix has to reach users before the next release. (`.github/workflows/dispatch-to-registry.yml`)
+
+### Fixed
+
+- **`doc/mcp/tool-reference.md` still promised newest-first records and a 200-entry cap.** 0.0.3 corrected the MCP tool descriptions to the real wire shape and retired the newest-first shorthand, but this page kept it in all eight `limit` rows, plus a "typically 200-500 depending on buffer type" capacity note. `limit` returns the most recent N records in chronological order (`_trim` takes `list.sublist(list.length - limit)`, so the oldest of that window is first and the newest is last), and every buffer caps at 500. A client reading this page and not reversing its iteration displayed the window backwards. (`doc/mcp/tool-reference.md`)
+- **`telescope_tail`'s MCP schema told agents the log buffer holds 200 entries; it holds 500.** The `limit` parameter description read "enforced by the ring-buffer size, typically 200" while `TelescopeStore._cap` is 500 and every other tool descriptor (`telescope_requests`, `telescope_exceptions`, `telescope_events`, `telescope_gates`, `telescope_queries`) correctly said 500. An agent budgeting a tail window against the documented number would under-read by 300 entries and conclude records had been evicted when they were still in the buffer. (`lib/src/telescope_artisan_provider.dart`)
+
 ## [0.0.4] - 2026-06-17
 
 ### Changed

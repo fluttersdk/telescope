@@ -34,7 +34,7 @@ All buffer-reading tools (every tool except `telescope_clear`) share these conve
 - **Newest-first ordering.** The most recent record is always at index 0 of the returned array.
 - **`limit` parameter.** All buffer tools accept an optional `limit: integer` parameter that caps
   the number of records returned. When omitted, the entire ring buffer is returned (subject to the
-  ring-buffer capacity, typically 200-500 records depending on buffer type).
+  ring-buffer capacity, 500 records per buffer).
 - **Empty array on empty buffer.** When the buffer holds no records (fresh start or after
   `telescope_clear`), the response is `{"records": []}`. This is not an error.
 - **JSON envelope.** Every tool returns a JSON object. The outer shape is always
@@ -57,7 +57,7 @@ Use this to inspect what the app logged without scraping `flutter run` stdout vi
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `limit` | integer | no | Maximum number of records to return, newest first. Omit for the whole buffer (cap enforced by ring-buffer size, typically 200). |
+| `limit` | integer | no | Maximum number of records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer (cap enforced by ring-buffer size, 500). |
 | `level` | string | no | Minimum log level to include. Common values: `FINE`, `INFO`, `WARNING`, `SEVERE`, `SHOUT`. Omit for all levels. |
 
 ### Output Shape
@@ -123,7 +123,7 @@ Use this to debug API issues without instrumenting the app or watching network p
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `limit` | integer | no | Maximum number of HTTP records to return, newest first. Omit for the whole buffer. |
+| `limit` | integer | no | Maximum number of HTTP records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer. |
 
 ### Output Shape
 
@@ -193,7 +193,7 @@ you need the stack without scraping `flutter run` stdout.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `limit` | integer | no | Maximum number of exception records to return, newest first. Omit for the whole buffer. |
+| `limit` | integer | no | Maximum number of exception records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer. |
 
 ### Output Shape
 
@@ -253,7 +253,7 @@ invalidation, broadcast echoes, model lifecycle transitions) without adding `pri
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `limit` | integer | no | Maximum number of event records to return, newest first. Omit for the whole buffer (cap enforced by ring-buffer size, typically 500). |
+| `limit` | integer | no | Maximum number of event records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer (cap enforced by ring-buffer size, 500). |
 
 ### Output Shape
 
@@ -312,7 +312,7 @@ issues (why a button is hidden, why a route is blocked) without modifying policy
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `limit` | integer | no | Maximum number of gate check records to return, newest first. Omit for the whole buffer (cap enforced by ring-buffer size, typically 500). |
+| `limit` | integer | no | Maximum number of gate check records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer (cap enforced by ring-buffer size, 500). |
 
 ### Output Shape
 
@@ -370,7 +370,7 @@ scraping `flutter run` stdout.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `limit` | integer | no | Maximum number of dump records to return, newest first. Omit for the whole buffer (cap enforced by ring-buffer size, typically 500). |
+| `limit` | integer | no | Maximum number of dump records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer (cap enforced by ring-buffer size, 500). |
 
 ### Output Shape
 
@@ -426,7 +426,7 @@ dispatched without attaching a separate SQL profiler.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `limit` | integer | no | Maximum number of query records to return, newest first. Omit for the whole buffer (cap enforced by ring-buffer size, typically 500). |
+| `limit` | integer | no | Maximum number of query records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer (cap enforced by ring-buffer size, 500). |
 
 ### Output Shape
 
@@ -486,7 +486,7 @@ without instrumenting the consumer code.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `limit` | integer | no | Maximum number of cache records to return, newest first. Omit for the whole buffer (cap enforced by ring-buffer size, typically 500). |
+| `limit` | integer | no | Maximum number of cache records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer (cap enforced by ring-buffer size, 500). |
 
 ### Output Shape
 
