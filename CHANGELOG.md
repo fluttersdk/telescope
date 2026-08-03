@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`telescope_tail`'s MCP schema told agents the log buffer holds 200 entries; it holds 500.** The `limit` parameter description read "enforced by the ring-buffer size, typically 200" while `TelescopeStore._cap` is 500 and every other tool descriptor (`telescope_requests`, `telescope_exceptions`, `telescope_events`, `telescope_gates`, `telescope_queries`) correctly said 500. An agent budgeting a tail window against the documented number would under-read by 300 entries and conclude records had been evicted when they were still in the buffer. (`lib/src/telescope_artisan_provider.dart`)
+
 ## [0.0.4] - 2026-06-17
 
 ### Changed
