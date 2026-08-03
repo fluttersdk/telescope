@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **The registry dispatch fires on a published release now, not on every push that touches the skill.** Under the push trigger `fluttersdk/ai` climbed to v1.3.75, and most of those releases re-published identical skill content: a docs commit and a release commit each cost the registry a version. The registry version now tracks published telescope releases instead of counting commits. `workflow_dispatch` stays as the manual escape hatch when a skill fix has to reach users before the next release. (`.github/workflows/dispatch-to-registry.yml`)
+
 ### Fixed
 
 - **`telescope_tail`'s MCP schema told agents the log buffer holds 200 entries; it holds 500.** The `limit` parameter description read "enforced by the ring-buffer size, typically 200" while `TelescopeStore._cap` is 500 and every other tool descriptor (`telescope_requests`, `telescope_exceptions`, `telescope_events`, `telescope_gates`, `telescope_queries`) correctly said 500. An agent budgeting a tail window against the documented number would under-read by 300 entries and conclude records had been evicted when they were still in the buffer. (`lib/src/telescope_artisan_provider.dart`)
