@@ -18,6 +18,18 @@ the agent needs structured data.
 
 ## Contents
 
+- [Contents](#contents)
+- [telescope:install](#telescopeinstall)
+- [telescope:tail](#telescopetail)
+- [telescope:requests](#telescoperequests)
+- [telescope:queries](#telescopequeries)
+- [telescope:caches](#telescopecaches)
+- [telescope:clear](#telescopeclear)
+- [Why some buffers are MCP-only](#why-some-buffers-are-mcp-only)
+- [Common output behaviour](#common-output-behaviour)
+
+## Contents
+
 - [`telescope:install`](#telescopeinstall)
 - [`telescope:tail`](#telescopetail)
 - [`telescope:requests`](#telescoperequests)
