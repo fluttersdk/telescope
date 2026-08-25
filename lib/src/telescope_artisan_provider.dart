@@ -111,7 +111,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
           name: 'telescope_clear',
           description: 'Clear every Telescope ring buffer in one call.\n'
               '\n'
-              'Wipes all 9 ring buffers atomically (http, logs, '
+              'Wipes all 10 ring buffers atomically (http, logs, '
               'exceptions, events, gates, dumps, queries, caches, magic '
               'models) so the next telescope_* read returns only records '
               'produced AFTER this clear. Useful as a "set zero" before '
@@ -119,7 +119,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
               'user action. Returns `{"cleared": true}` on success.\n'
               '\n'
               'Usage:\n'
-              '- No parameters; clears all 9 buffers in a single atomic '
+              '- No parameters; clears all 10 buffers in a single atomic '
               'pass.\n'
               '- Idempotent: safe to call when buffers are already empty.\n'
               '- Does NOT affect the live `package:logging` stream or any '

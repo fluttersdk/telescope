@@ -238,7 +238,7 @@ Every concrete watcher and record type is a `final class`. The two adapter contr
 |---|---|---|
 | **[Sentry Flutter](https://pub.dev/packages/sentry_flutter)** | Production crash + perf reporting via external SaaS | Local-only; debug-only; CLI + MCP queryable from your agent; no DSN, no SaaS account |
 | **[Talker / talker_flutter](https://pub.dev/packages/talker_flutter)** | In-app log overlay, Dio interceptor | VM Service surface (queryable by tools); MCP server for AI agents; framework-aware model / cache / event / gate watchers |
-| **[Alice](https://pub.dev/packages/alice)** | In-app HTTP request overlay UI | Captures 9 buffers (not just HTTP); passive (no shake-to-open overlay); CLI streaming; AI agent access; debug tree-shake |
+| **[Alice](https://pub.dev/packages/alice)** | In-app HTTP request overlay UI | Captures 10 buffers (not just HTTP); passive (no shake-to-open overlay); CLI streaming; AI agent access; debug tree-shake |
 | **[Flutter DevTools](https://docs.flutter.dev/tools/devtools/overview)** | Official browser-based inspector | Programmatic access (CLI + MCP), not just human-via-browser; ring-buffered records you can query between iterations; domain-aware (Magic) watchers |
 | **[mcp_flutter](https://github.com/Arenukvern/mcp_flutter)** | MCP toolkit for AI-driven UI interaction (tap, scroll, snapshot) | Complementary, not competitive: telescope owns runtime telemetry (HTTP, exceptions, queries); mcp_flutter owns UI automation |
 

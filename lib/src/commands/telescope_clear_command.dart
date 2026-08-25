@@ -7,8 +7,9 @@ class TelescopeClearCommand extends ArtisanCommand {
 
   @override
   String get description =>
-      'Clear all 9 telescope ring buffers atomically (http, logs, '
-      'exceptions, events, gates, dumps, queries, caches, magic models).';
+      'Clear all 10 telescope ring buffers atomically (http, logs, '
+      'exceptions, events, gates, dumps, queries, caches, magic models, '
+      'frame perf).';
 
   @override
   CommandBoot get boot => CommandBoot.connected;
