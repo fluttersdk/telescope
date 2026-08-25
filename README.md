@@ -223,11 +223,11 @@ TelescopePlugin.install()
     ↓
 Register default watchers (LogWatcher auto-installs)
     ↓
-registerAllTelescopeExtensions()   # 11 ext.telescope.* VM Service extensions, idempotent
+registerAllTelescopeExtensions()   # 12 ext.telescope.* VM Service extensions, idempotent
     ↓
 Consumer registers TelescopeArtisanProvider (auto-wired by `telescope:install` via bin/dispatcher.dart + _plugins.g.dart)
     ↓
-artisan mcp:serve   ->   9 telescope_* tools surface to MCP clients (Claude Code, Cursor, etc.)
+artisan mcp:serve   ->   10 telescope_* tools surface to MCP clients (Claude Code, Cursor, etc.)
 ```
 
 Every concrete watcher and record type is a `final class`. The two adapter contracts (`TelescopeWatcher`, `TelescopeHttpAdapter`) are `abstract class` with frozen 3-method signatures (`name`, `install`, `uninstall`). Magic-side glue (`MagicHttpFacadeAdapter`, `MagicModelWatcher`, etc.) depends on these contracts; any signature change requires a coordinated bump across both repos.
