@@ -64,6 +64,15 @@ class FramePerfWatcher implements TelescopeWatcher {
   /// Static because it is read from a VM Service extension handler, and
   /// [TelescopePlugin] keeps its watcher list private with no accessor: there
   /// is no route from a handler to a watcher instance.
+  ///
+  /// One caveat, and this is the place a reader will look for it. The counter
+  /// is incremented from a post-frame callback, and post-frame callbacks run
+  /// even when `RendererBinding.sendFramesToEngine` is false, which is the
+  /// gate a deferred first frame holds down. On that path the counter advances
+  /// while nothing reaches the engine, which is exactly the state it exists to
+  /// detect. No `deferFirstFrame` caller was found in this package or in the
+  /// four consumers checked, so it is stated rather than worked around; a
+  /// reader trusting the counter through a splash screen should know it.
   static int get livenessCounter => _livenessCounter;
 
   @visibleForTesting

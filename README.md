@@ -47,12 +47,12 @@ After install, the consumer gets the artisan fast-cli at `./bin/fsa` (native AOT
 
 | | Feature | Description |
 |:--|:--------|:------------|
-| 👁 | **9 Watchers** | LogWatcher, ExceptionWatcher, DumpWatcher, plus 6 Magic-specific adapters covering HTTP, models, cache, events, gates, and DB queries |
+| 👁 | **10 Watchers** | LogWatcher, ExceptionWatcher, DumpWatcher, FramePerfWatcher, plus 6 Magic-specific adapters covering HTTP, models, cache, events, gates, and DB queries |
 | 🤖 | **10 MCP Tools** | `telescope_requests`, `telescope_tail`, `telescope_exceptions`, `telescope_events`, `telescope_gates`, `telescope_dumps`, `telescope_queries`, `telescope_caches`, `telescope_frames`, `telescope_clear` |
 | 🖥 | **7 CLI Commands** | `telescope:install`, `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches`, `telescope:frames`, `telescope:clear` |
 | 🔌 | **Adapter Contract** | `TelescopeHttpAdapter` (abstract, 3-method shape) for plugging any HTTP client; ships `DioHttpAdapter` for vanilla Dio |
-| 📋 | **9 Record Types** | Immutable: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord` |
-| 📡 | **VM Service Extensions** | 11 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.clear`, `.pause`, `.resume` |
+| 📋 | **10 Record Types** | Immutable: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord`, `FramePerfRecord` |
+| 📡 | **VM Service Extensions** | 12 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.frames`, `.clear`, `.pause`, `.resume` |
 | ✨ | **Magic Integration** | `MagicTelescopeIntegration.install()` wires Http facade adapter + model/cache/event/gate watchers in one call (ships in the `magic_devtools` dev_dependency) |
 | 🔒 | **Debug-only Gate** | Consumer wraps install inside `if (kDebugMode)`; release builds tree-shake the entire telescope branch on all platforms |
 | 🔄 | **Idempotent Install** | Every `registerExtension` call routes through `registerExtensionIdempotent`; hot-restart safe, no `ArgumentError` on re-registration |
@@ -211,7 +211,7 @@ lib/
     ├── records/                # Immutable record types: HttpRequestRecord, LogRecordEntry, ExceptionRecord, etc.
     ├── extensions/             # registerAllTelescopeExtensions() aggregator + per-concern VM Service handlers
     ├── commands/               # TelescopeInstallCommand + 5 tail/query/clear commands
-    ├── telescope_store.dart    # 9-buffer ring store (singleton); Queue<T> per buffer + broadcast StreamController<T>
+    ├── telescope_store.dart    # 10-buffer ring store (singleton); Queue<T> per buffer + broadcast StreamController<T>
     ├── telescope_plugin.dart   # TelescopePlugin.install() entry + registerHttpAdapter() + registerWatcher()
     └── telescope_artisan_provider.dart  # TelescopeArtisanProvider: 7 commands + 10 MCP tool descriptors
 ```

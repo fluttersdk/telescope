@@ -1,7 +1,7 @@
 ---
 name: fluttersdk-telescope
-description: "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 9 MCP tools (`telescope_*`) or 6 CLI commands (`./bin/fsa telescope:*`). Records land in 9 in-memory ring buffers (500 entries each, FIFO eviction) backed by `ext.telescope.*` VM Service extensions. Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it."
-version: 0.0.4
+description: "fluttersdk_telescope: passive runtime inspector for Flutter apps. Lets an LLM agent read what the app captured (HTTP traffic, structured logs, uncaught exceptions, debug dumps, in-app events, gate checks, DB queries, Magic Cache ops) by calling 10 MCP tools (`telescope_*`) or 7 CLI commands (`./bin/fsa telescope:*`). Records land in 10 in-memory ring buffers with FIFO eviction (500 entries each, except the frame-perf buffer at 3600, about a minute at 60fps) backed by `ext.telescope.*` VM Service extensions. Pairs with fluttersdk_dusk: dusk drives the app, telescope reads the side effects. TRIGGER when: any `telescope_*` MCP tool call, any `telescope:*` CLI command, the user asks the agent to inspect HTTP / logs / exceptions / events / queries / cache / dump output from a running Flutter app, the user mentions ring buffer / TelescopeStore / ext.telescope, or the conversation pairs with dusk for state verification after a gesture. DO NOT TRIGGER when: only authoring flutter_test widget tests, only driving the UI without reading captured state (use fluttersdk-dusk), or only modifying Dart source without running it."
+version: 0.0.5
 when_to_use: "Any task that reads runtime state from a running Flutter app via telescope: calling `telescope_*` MCP tools to inspect HTTP / logs / exceptions / events / gates / dumps / queries / caches, invoking `./bin/fsa telescope:*` from a shell, pairing with dusk to verify side effects after a gesture, filtering logs by minimum level (FINE/INFO/WARNING/SEVERE/SHOUT), or clearing buffers before a repro."
 ---
 
@@ -11,7 +11,8 @@ when_to_use: "Any task that reads runtime state from a running Flutter app via t
 
 Passive runtime inspector for Flutter apps, designed for LLM agents. The
 running app captures HTTP, logs, exceptions, dumps, in-app events, gate
-checks, DB queries, and cache ops into 9 in-memory ring buffers. The agent
+checks, DB queries, cache ops, and per-frame performance into 10 in-memory
+ring buffers. The agent
 calls `telescope_*` MCP tools (or `./bin/fsa telescope:*` from a shell) to
 read those buffers on demand, without touching the source or attaching
 DevTools.
@@ -108,7 +109,7 @@ restart, and verify with `./bin/fsa telescope:tail`.
      A swallowed `try / catch` is invisible; pair with `telescope_tail`
      to catch the breadcrumb the swallower logged.
 
-## 2. Tool surface (9 MCP tools, 6 CLI commands)
+## 2. Tool surface (10 MCP tools, 7 CLI commands)
 
 | Family | MCP tool | CLI command | Captures |
 |---|---|---|---|

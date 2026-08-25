@@ -8,7 +8,7 @@ Guidance for Claude Code working in the `fluttersdk_telescope` repo. Path-scoped
 ## Stack
 
 Flutter SDK package (Dart 3.4+, Flutter 3.22+). Plugin of `fluttersdk_artisan ^0.0.8`: contributes
-`TelescopeArtisanProvider` with 6 CLI commands plus 9 MCP tools backed by 11 `ext.telescope.*` VM Service
+`TelescopeArtisanProvider` with 7 CLI commands plus 10 MCP tools backed by 12 `ext.telescope.*` VM Service
 extensions.
 
 Production deps are hosted only (no `pubspec_overrides.yaml`): `fluttersdk_artisan ^0.0.8`, `logging ^1.2.0`,
@@ -60,7 +60,7 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 | `records/` | 9 immutable record types: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord`. |
 | `extensions/` | 11 `ext.telescope.*` VM Service handlers + `registerAllTelescopeExtensions()` aggregator. |
 | `commands/` | 6 `TelescopeXCommand` (install, tail, requests, queries, caches, clear). |
-| `telescope_store.dart` | 9-buffer ring store (singleton). `Queue<T>` plus broadcast `StreamController<T>` per buffer. Default capacity 500. |
+| `telescope_store.dart` | 10-buffer ring store (singleton). `Queue<T>` plus broadcast `StreamController<T>` per buffer. Default capacity 500, except frame perf at 3600 with its own field. |
 | `telescope_plugin.dart` | `TelescopePlugin.install()` + `registerHttpAdapter()` + `registerWatcher()` entry points. |
 | `telescope_artisan_provider.dart` | `TelescopeArtisanProvider extends ArtisanServiceProvider`. |
 | `bin/fluttersdk_telescope.dart` | Flutter-free CLI wrapper; loads `TelescopeArtisanProvider` into `runArtisan` directly. |
@@ -75,7 +75,7 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 
 ### VM Service surface
 
-11 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.clear`, `.pause`, `.resume`. Every registration goes through `registerExtensionIdempotent` (from `fluttersdk_artisan`) for hot-restart safety. Handler signature: `Future<ServiceExtensionResponse> Function(String method, Map<String, String> params)`. Parse integers via `int.tryParse(params['key'] ?? '')`. Return `.result(jsonEncode(payload))` or `.error(kInvalidParams, msg)`.
+12 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.frames`, `.clear`, `.pause`, `.resume`. Every registration goes through `registerExtensionIdempotent` (from `fluttersdk_artisan`) for hot-restart safety. Handler signature: `Future<ServiceExtensionResponse> Function(String method, Map<String, String> params)`. Parse integers via `int.tryParse(params['key'] ?? '')`. Return `.result(jsonEncode(payload))` or `.error(kInvalidParams, msg)`.
 
 ## Off-limits
 
