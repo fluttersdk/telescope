@@ -1,6 +1,6 @@
 # Watchers
 
-Telescope ships 9 watcher units across three categories. Each unit implements one of two contracts:
+Telescope ships 10 watcher units across three categories. Each unit implements one of two contracts:
 `TelescopeWatcher` (for event-driven and hook-based capture) or `TelescopeHttpAdapter` (for HTTP
 traffic capture). All units feed the matching ring buffer inside `TelescopeStore` and expose their
 data via a VM Service extension method.
@@ -155,6 +155,46 @@ if (kDebugMode) {
 ```
 
 Opt-out: simply omit the `registerWatcher(DumpWatcher())` call.
+
+---
+
+### FramePerfWatcher
+
+| Field | Value |
+|---|---|
+| Contract | `TelescopeWatcher` |
+| Name | `frame_perf` |
+| Auto-install | No (opt-in via `TelescopePlugin.registerWatcher(FramePerfWatcher())`) |
+| Ring buffer | `TelescopeStore._framePerf` |
+| VM extension | `ext.telescope.frames` |
+| Opt-out | Do not register it; it is never auto-installed |
+
+Joins two sources the engine reports separately: frame magnitude from
+`SchedulerBinding.addTimingsCallback`, and per-frame attribution drained from `FlutterTimeline` at
+the end of every frame. The two arrive at different times, so the drain parks its block map in a
+bounded pending map and the timings callback pops the matching map to emit one complete
+`FramePerfRecord` per `FrameTiming`.
+
+`addTimingsCallback` appends to a list rather than replacing a single global slot, so there is
+nothing to chain-preserve here: every other listener (sentry_flutter's among them) keeps receiving
+timings while this watcher is installed. A static `livenessCounter`, incremented once per drawn
+frame regardless of whether a measurement session is running, is the only reliable proof the
+engine is rendering; it is exposed alongside every `ext.telescope.frames` response.
+
+Attribution only flows while `FlutterTimeline.debugCollectionEnabled` is true. Until a measurement
+session turns that on, the watcher records frame magnitude alone and every record's `blocks` map
+is empty.
+
+Registration:
+
+```dart
+if (kDebugMode) {
+  TelescopePlugin.install();
+  TelescopePlugin.registerWatcher(FramePerfWatcher()); // opt-in
+}
+```
+
+Opt-out: simply omit the `registerWatcher(FramePerfWatcher())` call.
 
 ---
 

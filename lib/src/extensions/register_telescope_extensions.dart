@@ -5,6 +5,7 @@ import 'package:fluttersdk_artisan/artisan.dart';
 import 'package:meta/meta.dart';
 
 import '../telescope_store.dart';
+import '../watchers/frame_perf_watcher.dart';
 
 /// Aggregator for ext.telescope.* VM Service extensions.
 void registerAllTelescopeExtensions() {
@@ -16,6 +17,7 @@ void registerAllTelescopeExtensions() {
   registerExtensionIdempotent('ext.telescope.dumps', dumpsHandler);
   registerExtensionIdempotent('ext.telescope.queries', queriesHandler);
   registerExtensionIdempotent('ext.telescope.caches', cachesHandler);
+  registerExtensionIdempotent('ext.telescope.frames', framesHandler);
   registerExtensionIdempotent('ext.telescope.clear', clearHandler);
   registerExtensionIdempotent('ext.telescope.pause', pauseHandler);
   registerExtensionIdempotent('ext.telescope.resume', resumeHandler);
@@ -148,6 +150,27 @@ Future<developer.ServiceExtensionResponse> dumpsHandler(
   final records = TelescopeStore.recentDumps(limit: limit);
   return developer.ServiceExtensionResponse.result(
     jsonEncode({'dumps': records.map((r) => r.toJson()).toList()}),
+  );
+}
+
+/// Handler for ext.telescope.frames.
+///
+/// Returns recent [FramePerfRecord] entries from [TelescopeStore] alongside
+/// [FramePerfWatcher.livenessCounter], so a caller can distinguish an empty
+/// result caused by a quiet app from one caused by a stalled engine. Accepts
+/// an optional `limit` param (stringified integer) to cap the result set.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> framesHandler(
+  String method,
+  Map<String, String> params,
+) async {
+  final limit = int.tryParse(params['limit'] ?? '');
+  final records = TelescopeStore.recentFramePerf(limit: limit);
+  return developer.ServiceExtensionResponse.result(
+    jsonEncode({
+      'frames': records.map((r) => r.toJson()).toList(),
+      'livenessCounter': FramePerfWatcher.livenessCounter,
+    }),
   );
 }
 

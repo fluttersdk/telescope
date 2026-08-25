@@ -180,7 +180,7 @@ Expected output on a running app shows the most recent log records from the ring
 If you see `Error: no running app found`, the artisan state file is missing: run
 `./bin/fsa start` first, then retry `telescope:tail`.
 
-To confirm all 6 CLI commands are registered, list the artisan command catalog:
+To confirm all 7 CLI commands are registered, list the artisan command catalog:
 
 ```bash
 ./bin/fsa list

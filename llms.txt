@@ -1,8 +1,8 @@
 # fluttersdk_telescope
 
-> Runtime inspector for Flutter and Dart apps. Watch HTTP requests, logs, exceptions, model lifecycle, cache operations, events, authorization gates, and database queries via 9 watchers, 6 CLI commands, and 9 MCP tools.
+> Runtime inspector for Flutter and Dart apps. Watch HTTP requests, logs, exceptions, model lifecycle, cache operations, events, authorization gates, and database queries via 10 watchers, 7 CLI commands, and 10 MCP tools.
 
-Debug-time plugin for Dart 3.4+ Flutter apps. Surfaces live HTTP, logging, exception, and Magic framework state streams via `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches` CLI commands and 9 MCP tool surfaces for AI coding agents (Claude Code, Cursor, Windsurf).
+Debug-time plugin for Dart 3.4+ Flutter apps. Surfaces live HTTP, logging, exception, and Magic framework state streams via `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches`, `telescope:frames` CLI commands and 10 MCP tool surfaces for AI coding agents (Claude Code, Cursor, Windsurf).
 
 ## Docs
 - [Installation](https://fluttersdk.com/telescope/getting-started/installation.md)
@@ -17,6 +17,7 @@ Debug-time plugin for Dart 3.4+ Flutter apps. Surfaces live HTTP, logging, excep
 - [Gate watcher](https://fluttersdk.com/telescope/watchers/gate.md)
 - [Dump watcher](https://fluttersdk.com/telescope/watchers/dump.md)
 - [Query watcher](https://fluttersdk.com/telescope/watchers/query.md)
+- [Frame performance watcher](https://fluttersdk.com/telescope/watchers/frames.md)
 - [MCP overview](https://fluttersdk.com/telescope/mcp/overview.md)
 - [MCP setup](https://fluttersdk.com/telescope/mcp/setup.md)
 - [MCP tool reference](https://fluttersdk.com/telescope/mcp/tool-reference.md)

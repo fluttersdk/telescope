@@ -34,7 +34,7 @@ telescope:install done
 
 When the consumer's `pubspec.yaml` lists `magic_devtools:` and `lib/main.dart` contains
 `await Magic.init(`, the install command also injects the `package:magic_devtools/telescope.dart`
-import and a `MagicTelescopeIntegration.install()` block after `Magic.init()` so all 9 watchers
+import and a `MagicTelescopeIntegration.install()` block after `Magic.init()` so all 10 watchers
 activate automatically. `MagicTelescopeIntegration` ships in the `magic_devtools` package (not in
 the `magic` core). On a vanilla Flutter app only the core watchers (`LogWatcher`, plus any you opt
 into manually) are wired.

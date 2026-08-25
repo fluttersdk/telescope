@@ -25,7 +25,7 @@ Run `dart pub get` after editing.
 
 ### Step 1a: bootstrap with `telescope:install` (optional but recommended)
 
-If you only want the MCP tools, jump to Step 2. If you also want the 6 CLI commands wired
+If you only want the MCP tools, jump to Step 2. If you also want the 7 CLI commands wired
 to the artisan dispatcher, run the one-shot bootstrap now; it scaffolds `bin/dispatcher.dart`,
 registers the plugin, and patches `lib/main.dart` in one go:
 

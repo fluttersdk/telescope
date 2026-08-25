@@ -1,7 +1,7 @@
 # Telescope MCP Tool Reference
 
 Catalog of every MCP tool contributed by `fluttersdk_telescope` via
-`TelescopeArtisanProvider.mcpTools()`. All 9 tools use the `telescope_` prefix and dispatch
+`TelescopeArtisanProvider.mcpTools()`. All 10 tools use the `telescope_` prefix and dispatch
 through `ext.telescope.*` VM Service extensions registered inside the running Flutter app by
 `registerAllTelescopeExtensions()`.
 
@@ -22,6 +22,7 @@ and confirm `artisan_status` shows a live `vmServiceUri` before invoking these t
 - [telescope_dumps](#telescope_dumps)
 - [telescope_queries](#telescope_queries)
 - [telescope_caches](#telescope_caches)
+- [telescope_frames](#telescope_frames)
 - [telescope_clear](#telescope_clear)
 - [Related](#related)
 
@@ -528,14 +529,85 @@ telescope_caches
 
 ---
 
+## telescope_frames
+
+Return recent per-frame performance records from the running Flutter app.
+
+Reads the Telescope frame-perf ring buffer populated by `FramePerfWatcher`, which joins
+`SchedulerBinding` frame timings with a per-frame `FlutterTimeline` block-attribution drain. Each
+record carries frame number, build/raster/vsync-overhead/total-span durations in microseconds, a
+timestamp, and a `blocks` map of named spans to their aggregated duration and call count. Use this
+to attribute jank to a specific widget or layout phase after driving an interaction.
+
+**VM Service extension:** `ext.telescope.frames`
+
+### Input Schema
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `limit` | integer | no | Maximum number of frame records to return (oldest-first; last entry is newest). Omit for the whole buffer (cap enforced by the frame-perf buffer size, default 3600). |
+
+### Output Shape
+
+```json
+{
+  "frames": [
+    {
+      "frameNumber": 128,
+      "buildMicros": 1400,
+      "rasterMicros": 2100,
+      "vsyncOverheadMicros": 300,
+      "totalSpanMicros": 3800,
+      "time": "2026-05-20T14:38:00.300Z",
+      "blocks": {
+        "Widget.build": { "micros": 600, "count": 5 }
+      }
+    }
+  ],
+  "livenessCounter": 128
+}
+```
+
+| Field | Type | Always present | Description |
+|---|---|---|---|
+| `frames` | array | yes | The frame records, may be empty |
+| `frames[].frameNumber` | integer | yes | The engine's frame number |
+| `frames[].buildMicros` | integer | yes | Build phase duration in microseconds |
+| `frames[].rasterMicros` | integer | yes | Raster phase duration in microseconds |
+| `frames[].vsyncOverheadMicros` | integer | yes | Vsync overhead in microseconds |
+| `frames[].totalSpanMicros` | integer | yes | Total frame span in microseconds |
+| `frames[].time` | string | yes | ISO 8601 UTC timestamp |
+| `frames[].blocks` | object | yes | Named span to `{micros, count}`; empty when no measurement session is collecting |
+| `livenessCounter` | integer | yes | Monotonic count of frames actually drawn since `FramePerfWatcher` was installed; present even when `frames` is empty, so a caller can tell a quiet app from a stalled engine |
+
+### Example Invocations
+
+```
+# Last 100 frames
+telescope_frames limit=100
+
+# All frames in the buffer
+telescope_frames
+```
+
+### Notes
+
+- `FramePerfWatcher` is opt-in and not auto-installed. An empty `frames` list with a
+  non-advancing `livenessCounter` means it is not registered, not that the app is idle.
+- `blocks` is only populated while a measurement session has `FlutterTimeline` collection
+  enabled; otherwise records carry frame magnitude with an empty `blocks` map.
+
+---
+
 ## telescope_clear
 
 Clear every Telescope ring buffer.
 
 Wipes all ring buffers in one call so the next `telescope_tail` / `telescope_requests` /
 `telescope_exceptions` / `telescope_events` / `telescope_gates` / `telescope_dumps` /
-`telescope_queries` / `telescope_caches` returns only records produced **after** this clear. Useful
-as a "set zero" before reproducing a bug or capturing the output of a specific user action.
+`telescope_queries` / `telescope_caches` / `telescope_frames` returns only records produced
+**after** this clear. Useful as a "set zero" before reproducing a bug or capturing the output of a
+specific user action.
 
 **VM Service extension:** `ext.telescope.clear`
 
@@ -579,7 +651,7 @@ telescope_tail limit=50
 
 ## Related
 
-- [Overview](overview.md): how the 9 tools surface through `TelescopeArtisanProvider` and route
+- [Overview](overview.md): how the 10 tools surface through `TelescopeArtisanProvider` and route
   through the VM Service.
 - [Setup guide](setup.md): install telescope, register `TelescopeArtisanProvider`, and connect
   Claude Code.
