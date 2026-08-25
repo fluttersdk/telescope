@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Passive runtime inspector for Flutter. Read by humans, queried by AI agents.</strong><br/>
-  HTTP, logs, exceptions, <code>debugPrint</code>, DB queries, and Magic events captured over VM Service extensions, surfaced as <code>telescope:*</code> CLI commands and as 9 MCP tools for Claude Code.
+  HTTP, logs, exceptions, <code>debugPrint</code>, DB queries, and Magic events captured over VM Service extensions, surfaced as <code>telescope:*</code> CLI commands and as 10 MCP tools for Claude Code.
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@
 
 Debugging a running Flutter app has always required a mix of `print` statements, custom logging sinks, and network proxies that each tell a different slice of the story. When something breaks, you stitch together log files, Charles captures, and Flutter DevTools windows to reconstruct what happened. The AI workflow is worse: you copy the stack trace out of the console, paste it into Claude Code, copy the failing HTTP response, paste it back, repeat.
 
-**Telescope closes that loop.** Passive watchers and 11 VM Service extensions register at startup. Every HTTP request, log line, exception, `debugPrint` call, DB query, and Magic-framework lifecycle event lands in a ring buffer. CLI commands (`telescope:tail`, `telescope:requests`) stream the buffers for humans; **9 MCP tools** (`telescope_requests`, `telescope_exceptions`, `telescope_tail`, ...) expose the same buffers to AI coding agents like Claude Code, Cursor, and Codex. No copy-paste, no screenshots, no SaaS account. Debug-only; `kDebugMode` tree-shakes the entire subsystem on release builds.
+**Telescope closes that loop.** Passive watchers and 12 VM Service extensions register at startup. Every HTTP request, log line, exception, `debugPrint` call, DB query, and Magic-framework lifecycle event lands in a ring buffer. CLI commands (`telescope:tail`, `telescope:requests`) stream the buffers for humans; **10 MCP tools** (`telescope_requests`, `telescope_exceptions`, `telescope_tail`, ...) expose the same buffers to AI coding agents like Claude Code, Cursor, and Codex. No copy-paste, no screenshots, no SaaS account. Debug-only; `kDebugMode` tree-shakes the entire subsystem on release builds.
 
 ```bash
 # One-shot self-bootstrap install (works from a fresh consumer)
@@ -48,8 +48,8 @@ After install, the consumer gets the artisan fast-cli at `./bin/fsa` (native AOT
 | | Feature | Description |
 |:--|:--------|:------------|
 | 👁 | **9 Watchers** | LogWatcher, ExceptionWatcher, DumpWatcher, plus 6 Magic-specific adapters covering HTTP, models, cache, events, gates, and DB queries |
-| 🤖 | **9 MCP Tools** | `telescope_requests`, `telescope_tail`, `telescope_exceptions`, `telescope_events`, `telescope_gates`, `telescope_dumps`, `telescope_queries`, `telescope_caches`, `telescope_clear` |
-| 🖥 | **6 CLI Commands** | `telescope:install`, `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches`, `telescope:clear` |
+| 🤖 | **10 MCP Tools** | `telescope_requests`, `telescope_tail`, `telescope_exceptions`, `telescope_events`, `telescope_gates`, `telescope_dumps`, `telescope_queries`, `telescope_caches`, `telescope_frames`, `telescope_clear` |
+| 🖥 | **7 CLI Commands** | `telescope:install`, `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches`, `telescope:frames`, `telescope:clear` |
 | 🔌 | **Adapter Contract** | `TelescopeHttpAdapter` (abstract, 3-method shape) for plugging any HTTP client; ships `DioHttpAdapter` for vanilla Dio |
 | 📋 | **9 Record Types** | Immutable: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord` |
 | 📡 | **VM Service Extensions** | 11 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.clear`, `.pause`, `.resume` |
@@ -154,6 +154,7 @@ exit(await runArtisan(
 | `MagicEventWatcher` | Events dispatched through the Magic `Event` facade | No | Register via `TelescopePlugin.registerWatcher(MagicEventWatcher())`. Requires Magic framework. |
 | `MagicGateWatcher` | `Gate.allows` / `Gate.denies` authorization checks | No | Register via `TelescopePlugin.registerWatcher(MagicGateWatcher())`. Requires Magic framework. |
 | `MagicQueryWatcher` | Magic SQLite + remote DB queries (sql, bindings, timeMs, connection) | No | Subscribes to the magic-side `QueryExecuted` event dispatched by the database connector. Requires Magic framework. |
+| `FramePerfWatcher` | Per-frame build/raster/vsync-overhead timings joined with `FlutterTimeline` block attribution | No | Register via `TelescopePlugin.registerWatcher(FramePerfWatcher())`. Exposes a static `livenessCounter` alongside every read. |
 
 ## MCP Tools
 
@@ -170,6 +171,7 @@ Exposed via `TelescopeArtisanProvider` when the consumer registers it (auto-wire
 | `telescope_dumps` | `ext.telescope.dumps` | `debugPrint` output ring buffer (message + timestamp). |
 | `telescope_queries` | `ext.telescope.queries` | DB query ring buffer (sql, bindings, timeMs, connectionName). |
 | `telescope_caches` | `ext.telescope.caches` | Cache operation ring buffer (operation: hit / miss / put / forget / flush; key; ttlMs). |
+| `telescope_frames` | `ext.telescope.frames` | Per-frame performance ring buffer (build/raster/vsync-overhead/total-span micros, block attribution) plus the `livenessCounter`. |
 
 ## CLI Commands
 
@@ -182,6 +184,7 @@ Registered via `TelescopeArtisanProvider.commands()`. After `telescope:install` 
 | `telescope:requests` | Print the HTTP request buffer (paginated). |
 | `telescope:queries` | Print the DB query buffer (paginated). |
 | `telescope:caches` | Print the cache operation buffer (paginated). |
+| `telescope:frames` | Print the per-frame performance buffer (paginated). |
 | `telescope:clear` | Flush all buffers atomically. |
 
 ## Examples
@@ -210,7 +213,7 @@ lib/
     ├── commands/               # TelescopeInstallCommand + 5 tail/query/clear commands
     ├── telescope_store.dart    # 9-buffer ring store (singleton); Queue<T> per buffer + broadcast StreamController<T>
     ├── telescope_plugin.dart   # TelescopePlugin.install() entry + registerHttpAdapter() + registerWatcher()
-    └── telescope_artisan_provider.dart  # TelescopeArtisanProvider: 6 commands + 9 MCP tool descriptors
+    └── telescope_artisan_provider.dart  # TelescopeArtisanProvider: 7 commands + 10 MCP tool descriptors
 ```
 
 Boot flow:
@@ -291,7 +294,7 @@ Full docs with live examples at **[fluttersdk.com/telescope](https://fluttersdk.
 | Topic | |
 |:------|:-|
 | [Getting Started](https://fluttersdk.com/telescope/getting-started/) | Overview, requirements, first install |
-| [Watchers](https://fluttersdk.com/telescope/watchers/) | All 9 watchers: setup, chain-preserve pattern, Magic adapters |
+| [Watchers](https://fluttersdk.com/telescope/watchers/) | All 10 watchers: setup, chain-preserve pattern, Magic adapters |
 | [MCP Tools](https://fluttersdk.com/telescope/mcp/) | Every tool, every input schema, filter parameters |
 
 ## Contributing

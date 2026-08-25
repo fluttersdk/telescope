@@ -17,16 +17,19 @@ import 'package:fluttersdk_telescope/src/extensions/register_telescope_extension
 import 'package:fluttersdk_telescope/src/records/dump_record.dart';
 import 'package:fluttersdk_telescope/src/records/event_record.dart';
 import 'package:fluttersdk_telescope/src/records/exception_record.dart';
+import 'package:fluttersdk_telescope/src/records/frame_perf_record.dart';
 import 'package:fluttersdk_telescope/src/records/gate_record.dart';
 import 'package:fluttersdk_telescope/src/records/http_request_record.dart';
 import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
 import 'package:fluttersdk_telescope/src/records/magic_cache_record.dart';
 import 'package:fluttersdk_telescope/src/records/query_record.dart';
 import 'package:fluttersdk_telescope/src/telescope_store.dart';
+import 'package:fluttersdk_telescope/src/watchers/frame_perf_watcher.dart';
 
 void main() {
   setUp(() {
     TelescopeStore.resetForTesting();
+    FramePerfWatcher.resetLivenessCounterForTesting();
     registerAllTelescopeExtensions();
   });
 
@@ -731,6 +734,80 @@ void main() {
       final result = await cachesHandler('ext.telescope.caches', {});
       final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
       expect(decoded['caches'], isEmpty);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ext.telescope.frames handler
+  // ---------------------------------------------------------------------------
+
+  group('ext.telescope.frames handler', () {
+    test('returns a parseable JSON envelope with a frames key', () async {
+      final result = await framesHandler('ext.telescope.frames', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      expect(decoded.containsKey('frames'), isTrue);
+    });
+
+    test('returns records matching TelescopeStore.recentFramePerf()',
+        () async {
+      TelescopeStore.recordFramePerf(
+        FramePerfRecord(
+          frameNumber: 1,
+          buildMicros: 100,
+          rasterMicros: 200,
+          vsyncOverheadMicros: 10,
+          totalSpanMicros: 310,
+          time: DateTime(2026, 1, 1),
+          blocks: const <String, ({int micros, int count})>{},
+        ),
+      );
+
+      final result = await framesHandler('ext.telescope.frames', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      final frames = decoded['frames'] as List<dynamic>;
+
+      final expected =
+          TelescopeStore.recentFramePerf().map((r) => r.toJson()).toList();
+      expect(frames, hasLength(1));
+      expect(jsonEncode(frames), equals(jsonEncode(expected)));
+    });
+
+    test('limit truncates from the newest end, not the oldest', () async {
+      for (var i = 0; i < 5; i++) {
+        TelescopeStore.recordFramePerf(
+          FramePerfRecord(
+            frameNumber: i,
+            buildMicros: i,
+            rasterMicros: i,
+            vsyncOverheadMicros: i,
+            totalSpanMicros: i,
+            time: DateTime(2026, 1, 1, i),
+            blocks: const <String, ({int micros, int count})>{},
+          ),
+        );
+      }
+
+      final result =
+          await framesHandler('ext.telescope.frames', {'limit': '2'});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      final frames = decoded['frames'] as List<dynamic>;
+
+      expect(frames, hasLength(2));
+      // A caller asking for the last 2 of 5 frames wants frameNumber 3 and 4
+      // (the ones nearest the interaction just driven), not 0 and 1.
+      expect(frames.first['frameNumber'], equals(3));
+      expect(frames.last['frameNumber'], equals(4));
+    });
+
+    test('carries the liveness counter even when the record list is empty',
+        () async {
+      final result = await framesHandler('ext.telescope.frames', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      final frames = decoded['frames'] as List<dynamic>;
+
+      expect(frames, isEmpty);
+      expect(decoded['livenessCounter'], isA<int>());
+      expect(decoded.containsKey('livenessCounter'), isTrue);
     });
   });
 }

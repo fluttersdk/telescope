@@ -2,6 +2,7 @@ import 'package:fluttersdk_artisan/artisan.dart';
 
 import 'commands/telescope_caches_command.dart';
 import 'commands/telescope_clear_command.dart';
+import 'commands/telescope_frames_command.dart';
 import 'commands/telescope_install_command.dart';
 import 'commands/telescope_queries_command.dart';
 import 'commands/telescope_requests_command.dart';
@@ -10,9 +11,9 @@ import 'commands/telescope_tail_command.dart';
 /// Contributes telescope:* commands and MCP tool descriptors to the artisan
 /// dispatcher.
 ///
-/// V1 ships 6 CLI commands (telescope:install, telescope:tail, telescope:requests,
-/// telescope:queries, telescope:caches, telescope:clear) and 9 MCP tools backed
-/// by ext.telescope.* VM Service extensions registered by
+/// V1 ships 7 CLI commands (telescope:install, telescope:tail, telescope:requests,
+/// telescope:queries, telescope:caches, telescope:frames, telescope:clear) and
+/// 10 MCP tools backed by ext.telescope.* VM Service extensions registered by
 /// [registerAllTelescopeExtensions]. The pause/resume extensions are BACKLOG
 /// per D5 and are intentionally absent from mcpTools().
 class TelescopeArtisanProvider extends ArtisanServiceProvider {
@@ -26,6 +27,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
         TelescopeRequestsCommand(),
         TelescopeQueriesCommand(),
         TelescopeCachesCommand(),
+        TelescopeFramesCommand(),
         TelescopeClearCommand(),
       ];
 
@@ -332,6 +334,50 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
             },
           },
           extensionMethod: 'ext.telescope.caches',
+        ),
+        McpToolDescriptor(
+          name: 'telescope_frames',
+          description: 'Return recent per-frame performance records from the '
+              'running Flutter app.\n'
+              '\n'
+              'Reads the Telescope frame-perf ring buffer (populated by '
+              'FramePerfWatcher, which joins SchedulerBinding frame timings '
+              'with a per-frame FlutterTimeline block-attribution drain). '
+              'Each record carries frame number, build/raster/vsync-overhead '
+              '/total-span durations in microseconds, a timestamp, and a '
+              '`blocks` map of named spans to their aggregated duration and '
+              'call count. The response also carries a `livenessCounter`: a '
+              'monotonic count of frames actually drawn, present even when '
+              'the record list is empty, so a caller can tell a quiet app '
+              'from a stalled engine. Use this to attribute jank to a '
+              'specific widget or layout phase after driving an interaction.\n'
+              '\n'
+              'Usage:\n'
+              '- Pass `limit: <n>` to cap how many records come back '
+              '(default returns the whole buffer; the frame-perf buffer '
+              'holds about a minute of frames at 60fps).\n'
+              '- Returned oldest-first (last entry is newest); pair with '
+              'telescope_clear before a repro to isolate just the relevant '
+              'frames.\n'
+              '- FramePerfWatcher is opt-in and not auto-installed; an '
+              'empty list with a non-advancing livenessCounter means it is '
+              'not registered, not that the app is idle.\n'
+              '- `blocks` is only populated while a measurement session has '
+              'FlutterTimeline collection enabled; otherwise records carry '
+              'frame magnitude with an empty `blocks` map.',
+          inputSchema: {
+            'type': 'object',
+            'properties': {
+              'limit': {
+                'type': 'integer',
+                'description': 'Maximum number of frame records to return '
+                    '(oldest-first; last entry is newest). Omit for the '
+                    'whole buffer (cap enforced by the frame-perf buffer '
+                    'size, default 3600).',
+              },
+            },
+          },
+          extensionMethod: 'ext.telescope.frames',
         ),
       ];
 }
