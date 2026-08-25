@@ -94,6 +94,28 @@ void main() {
         expect(records.single.totalSpanMicros, 8000);
       });
 
+      testWidgets('a SECOND watcher instance does not double the liveness '
+          'counter', (WidgetTester tester) async {
+        // Two registrations is the expected case, not a mistake:
+        // MagicPerfIntegration registers one and this class's own docs tell a
+        // host to register one, while TelescopePlugin.registerWatcher appends
+        // without deduping. The counter is static, so a second installed
+        // instance would increment it twice per frame. That is not cosmetic:
+        // a backgrounded page produces exactly ONE frame, two watchers make
+        // that an advance of two, and perf_end's refusal trips at one, so the
+        // page that rendered nothing would get a report of near-zeros.
+        final FramePerfWatcher second = FramePerfWatcher();
+        addTearDown(second.uninstall);
+
+        watcher.install();
+        second.install();
+
+        tester.binding.scheduleFrame();
+        await tester.pump();
+
+        expect(FramePerfWatcher.livenessCounter, 1);
+      });
+
       test('a timings callback registered before the watcher still fires', () {
         // The additive-coexistence guarantee: `addTimingsCallback` appends to
         // a list, so sentry_flutter's own listener must survive our install.

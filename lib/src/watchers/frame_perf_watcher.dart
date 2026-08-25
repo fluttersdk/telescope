@@ -83,10 +83,27 @@ class FramePerfWatcher implements TelescopeWatcher {
   bool _drainScheduled = false;
   bool _installed = false;
 
+  /// Whether ANY instance is currently installed.
+  ///
+  /// Static rather than per-instance because the liveness counter is static,
+  /// and a second installed watcher would increment it a second time per
+  /// frame. That is not a cosmetic double count: a backgrounded page produces
+  /// exactly one frame, two watchers turn that into an advance of two, and
+  /// `perf_end`'s stalled-engine refusal (which trips at an advance of one)
+  /// would pass a page that rendered nothing and report the table of
+  /// near-zeros it exists to prevent.
+  ///
+  /// Two registrations is the expected case, not a mistake:
+  /// `MagicPerfIntegration.install()` registers one, and this class's own
+  /// docs tell a host to register one. `TelescopePlugin.registerWatcher`
+  /// appends without deduping, so the guard has to live here.
+  static bool _anyInstalled = false;
+
   @override
   void install() {
-    if (_installed) return;
+    if (_installed || _anyInstalled) return;
     _installed = true;
+    _anyInstalled = true;
 
     // 1. Frame magnitude. Purely additive: no previous handler to save, and
     //    nothing to restore beyond removing this one callback.
@@ -100,6 +117,7 @@ class FramePerfWatcher implements TelescopeWatcher {
   void uninstall() {
     if (!_installed) return;
     _installed = false;
+    _anyInstalled = false;
 
     SchedulerBinding.instance.removeTimingsCallback(_timingsCallback);
 
@@ -193,9 +211,38 @@ class FramePerfWatcher implements TelescopeWatcher {
       // order, so the Nth timing belongs to the Nth drain. Both cursors are
       // monotonic, so a burst of timings after a stall walks past the evicted
       // keys and realigns on the ones still parked.
-      final Map<String, ({int micros, int count})>? blocks =
-          _pendingBlocks.remove(_nextJoinKey);
-      _nextJoinKey += 1;
+      //
+      // The clamp is what keeps that true when the watcher is installed after
+      // the app is already running. `onReportTimings` is armed at binding init
+      // in every non-release mode, so the first batch to arrive after a
+      // mid-flight `registerWatcher` carries timings for frames that happened
+      // before drain key 0 existed. Advancing the join cursor for those would
+      // put it permanently ahead of the drain cursor, every later `remove`
+      // would miss, and every record would carry an empty block map with
+      // nothing anywhere reporting a fault. A timing with no drain behind it
+      // is simply unattributed, and must not consume a key it did not earn.
+      //
+      // KNOWN LIMIT, in the other direction. The pairing assumes one reported
+      // `FrameTiming` per post-frame callback, and Flutter can break that:
+      // `RendererBinding.sendFramesToEngine` gates the render that produces a
+      // timing, while post-frame callbacks run either way, so a deferred first
+      // frame would offset every later pairing by a constant. The map is keyed
+      // rather than a queue, so a slip cannot hand back a DIFFERENT frame's
+      // map at random; but a constant offset would pair each timing with a
+      // neighbouring frame's blocks and nothing here would notice. Detecting
+      // it needs an identity both sides know, which today only the engine has.
+      // Not fixed here because it is unreached in this ecosystem (no caller of
+      // `deferFirstFrame` in wind, magic, magic_starter or the consumer app)
+      // and the fix, matching on `currentSystemFrameTimeStamp` against
+      // `FramePhase.vsyncStart`, needs a driven run on web to confirm the
+      // stamps agree. Session-wide `blockAttribution` is unaffected either
+      // way, since it sums across frames; `worst_frames` is what would carry a
+      // shifted map.
+      Map<String, ({int micros, int count})>? blocks;
+      if (_nextJoinKey < _nextDrainKey) {
+        blocks = _pendingBlocks.remove(_nextJoinKey);
+        _nextJoinKey += 1;
+      }
 
       // A timing with no block map still emits: frame magnitude without
       // attribution is worth reporting. The reverse is not, so a block map
