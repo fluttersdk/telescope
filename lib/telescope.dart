@@ -19,6 +19,7 @@ export 'src/adapters/http_adapter.dart';
 export 'src/records/dump_record.dart';
 export 'src/records/event_record.dart';
 export 'src/records/exception_record.dart';
+export 'src/records/frame_perf_record.dart';
 export 'src/records/gate_record.dart';
 export 'src/records/http_request_record.dart';
 export 'src/records/log_record_entry.dart';

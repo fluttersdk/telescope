@@ -7,6 +7,7 @@ import 'internal/http_adapter_registry.dart';
 import 'records/dump_record.dart';
 import 'records/event_record.dart';
 import 'records/exception_record.dart';
+import 'records/frame_perf_record.dart';
 import 'records/gate_record.dart';
 import 'records/http_request_record.dart';
 import 'records/log_record_entry.dart';
@@ -14,9 +15,12 @@ import 'records/magic_cache_record.dart';
 import 'records/magic_model_record.dart';
 import 'records/query_record.dart';
 
-/// In-memory ring-buffer store for the 9 V1+alpha-2 watcher record types.
+/// In-memory ring-buffer store for the 9 V1+alpha-2 watcher record types
+/// plus the frame-perf buffer.
 ///
 /// Default cap: 500 entries per buffer (configurable via [setCapacity]).
+/// The frame-perf buffer has its own capacity ([setFramePerfCapacity],
+/// default 3600) rather than sharing [_cap]; see its field docblock.
 /// Singleton accessed via static methods. Hot-restart resets the buffers
 /// naturally (statics re-run their initializers).
 class TelescopeStore {
@@ -24,6 +28,16 @@ class TelescopeStore {
 
   static int _cap = 500;
   static bool _paused = false;
+
+  /// The frame-perf buffer's own capacity, independent of [_cap].
+  ///
+  /// `_cap` is shared by all nine sibling buffers; raising it to hold a
+  /// useful frame window (500 frames is about 8 seconds at 60fps) would
+  /// simultaneously inflate the HTTP, log, exception, dump, model, cache,
+  /// event, gate and query buffers by the same factor. A frame buffer's
+  /// natural size is an order of magnitude larger than an exception
+  /// buffer's, so it gets its own field: 3600 is about a minute at 60fps.
+  static int _framePerfCap = 3600;
 
   static final Queue<HttpRequestRecord> _http = Queue<HttpRequestRecord>();
   static final Queue<LogRecordEntry> _logs = Queue<LogRecordEntry>();
@@ -34,6 +48,7 @@ class TelescopeStore {
   static final Queue<GateRecord> _gates = Queue<GateRecord>();
   static final Queue<DumpRecord> _dumps = Queue<DumpRecord>();
   static final Queue<QueryRecord> _queries = Queue<QueryRecord>();
+  static final Queue<FramePerfRecord> _framePerf = Queue<FramePerfRecord>();
 
   static final StreamController<HttpRequestRecord> _httpStream =
       StreamController<HttpRequestRecord>.broadcast();
@@ -53,9 +68,15 @@ class TelescopeStore {
       StreamController<DumpRecord>.broadcast();
   static final StreamController<QueryRecord> _queryStream =
       StreamController<QueryRecord>.broadcast();
+  static final StreamController<FramePerfRecord> _framePerfStream =
+      StreamController<FramePerfRecord>.broadcast();
 
   /// Set per-buffer capacity (default 500).
   static void setCapacity(int cap) => _cap = cap;
+
+  /// Set the frame-perf buffer's own capacity (default 3600). Independent
+  /// of [setCapacity]; see [_framePerfCap] for why.
+  static void setFramePerfCapacity(int cap) => _framePerfCap = cap;
 
   /// Pause all recording. Calls become no-ops until [resume].
   static void pause() => _paused = true;
@@ -74,7 +95,16 @@ class TelescopeStore {
     _gates.clear();
     _dumps.clear();
     _queries.clear();
+    _framePerf.clear();
   }
+
+  /// Clear only the frame-perf buffer.
+  ///
+  /// Public and NOT `@visibleForTesting`: a measurement session needs to
+  /// zero this buffer from production code (another package assigns this
+  /// into a session-reset hook) without wiping the HTTP, log and exception
+  /// history a developer may also be reading, which [clear] would do.
+  static void clearFramePerf() => _framePerf.clear();
 
   static void recordHttp(HttpRequestRecord r) {
     if (_paused) return;
@@ -157,6 +187,15 @@ class TelescopeStore {
     _queryStream.add(r);
   }
 
+  static void recordFramePerf(FramePerfRecord r) {
+    if (_paused) return;
+    _framePerf.addLast(r);
+    while (_framePerf.length > _framePerfCap) {
+      _framePerf.removeFirst();
+    }
+    _framePerfStream.add(r);
+  }
+
   static List<HttpRequestRecord> recentHttp({int? limit}) =>
       _recent(_http, limit);
   static List<LogRecordEntry> recentLogs({int? limit, String? minLevel}) {
@@ -178,6 +217,8 @@ class TelescopeStore {
   static List<DumpRecord> recentDumps({int? limit}) => _recent(_dumps, limit);
   static List<QueryRecord> recentQueries({int? limit}) =>
       _recent(_queries, limit);
+  static List<FramePerfRecord> recentFramePerf({int? limit}) =>
+      _recent(_framePerf, limit);
 
   static List<T> _recent<T>(Queue<T> q, int? limit) => _trim(q.toList(), limit);
 
@@ -230,6 +271,8 @@ class TelescopeStore {
   static Stream<GateRecord> get onGateRecord => _gateStream.stream;
   static Stream<DumpRecord> get onDumpRecord => _dumpStream.stream;
   static Stream<QueryRecord> get onQueryRecord => _queryStream.stream;
+  static Stream<FramePerfRecord> get onFramePerfRecord =>
+      _framePerfStream.stream;
 
   /// Test-only reset.
   @visibleForTesting
@@ -237,6 +280,7 @@ class TelescopeStore {
     clear();
     _paused = false;
     _cap = 500;
+    _framePerfCap = 3600;
     // The HTTP-adapter registry is a singleton list owned by
     // `internal/http_adapter_registry.dart`; clearing it here keeps test
     // isolation aligned with the existing buffer reset.

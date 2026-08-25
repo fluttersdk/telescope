@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- **A tenth ring buffer, `FramePerfRecord`, for per-frame performance data.** Carries the fields `FrameTiming` exposes (`buildMicros`, `rasterMicros`, `vsyncOverheadMicros`, `totalSpanMicros`) plus a per-frame block-attribution map. `TelescopeStore.recordFramePerf`/`.recentFramePerf`/`.onFramePerfRecord` follow the shape of the existing nine buffers, with one deliberate difference: the buffer reads its own `setFramePerfCapacity` (default 3600, about a minute at 60fps) instead of the shared `setCapacity`, so a useful frame window does not simultaneously inflate the HTTP, log, exception, dump, model, cache, event, gate and query buffers. `clearFramePerf()` is a new public, non-test-only method that empties only this buffer, for a production caller that needs to zero it at the start of a measurement session without touching the other nine. (`lib/src/records/frame_perf_record.dart`, `lib/src/telescope_store.dart`, `lib/telescope.dart`)
+
 ### Changed
 
 - **The registry dispatch fires on a published release now, not on every push that touches the skill.** Under the push trigger `fluttersdk/ai` climbed to v1.3.75, and most of those releases re-published identical skill content: a docs commit and a release commit each cost the registry a version. The registry version now tracks published telescope releases instead of counting commits. `workflow_dispatch` stays as the manual escape hatch when a skill fix has to reach users before the next release. (`.github/workflows/dispatch-to-registry.yml`)
