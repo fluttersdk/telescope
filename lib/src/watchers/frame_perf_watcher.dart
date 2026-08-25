@@ -69,14 +69,6 @@ class FramePerfWatcher implements TelescopeWatcher {
   @visibleForTesting
   static void resetLivenessCounterForTesting() => _livenessCounter = 0;
 
-  /// Releases the process-wide install guard.
-  ///
-  /// Needed because [_anyInstalled] is static: a test whose instance never
-  /// reaches its own `uninstall()` would otherwise silently no-op every later
-  /// `install()` in the isolate, and the negative assertions downstream would
-  /// read as product failures rather than as leaked state.
-  @visibleForTesting
-  static void resetInstallGuardForTesting() => _anyInstalled = false;
 
   /// The exact callback handed to [SchedulerBinding.addTimingsCallback], kept
   /// so [uninstall] removes that one rather than a fresh tear-off.
