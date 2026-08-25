@@ -405,7 +405,7 @@ events ship).
 
 ## telescope_clear
 
-Wipe all 9 ring buffers atomically.
+Wipe all 10 ring buffers atomically.
 
 **VM extension:** `ext.telescope.clear`.
 

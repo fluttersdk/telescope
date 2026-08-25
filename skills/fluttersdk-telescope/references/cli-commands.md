@@ -241,7 +241,7 @@ Note: the buffer is currently a placeholder, see the cache section in
 
 ## telescope:clear
 
-Wipe all 9 ring buffers atomically.
+Wipe all 10 ring buffers atomically.
 
 **Flags:** none.
 

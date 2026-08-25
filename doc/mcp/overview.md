@@ -15,10 +15,10 @@
 
 ## What Telescope Contributes
 
-`fluttersdk_telescope` is a plugin for `fluttersdk_artisan`. It contributes **9 MCP tools** via
-`TelescopeArtisanProvider.mcpTools()` and **6 CLI commands** via `TelescopeArtisanProvider.commands()`.
+`fluttersdk_telescope` is a plugin for `fluttersdk_artisan`. It contributes **10 MCP tools** via
+`TelescopeArtisanProvider.mcpTools()` and **7 CLI commands** via `TelescopeArtisanProvider.commands()`.
 
-The 9 MCP tools give an LLM agent read-only access to ring buffers that telescope maintains inside the
+The 10 MCP tools give an LLM agent read-only access to ring buffers that telescope maintains inside the
 running Flutter app. Each tool reads one buffer type: HTTP traffic, log lines, uncaught exceptions,
 in-app events, Gate authorization checks, `debugPrint` output, database queries, and cache operations.
 A tenth tool (`telescope_clear`) wipes all buffers at once as a "set zero" before a repro.
