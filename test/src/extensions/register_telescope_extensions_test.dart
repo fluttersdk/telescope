@@ -748,8 +748,7 @@ void main() {
       expect(decoded.containsKey('frames'), isTrue);
     });
 
-    test('returns records matching TelescopeStore.recentFramePerf()',
-        () async {
+    test('returns records matching TelescopeStore.recentFramePerf()', () async {
       TelescopeStore.recordFramePerf(
         FramePerfRecord(
           frameNumber: 1,

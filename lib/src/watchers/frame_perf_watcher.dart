@@ -69,7 +69,6 @@ class FramePerfWatcher implements TelescopeWatcher {
   @visibleForTesting
   static void resetLivenessCounterForTesting() => _livenessCounter = 0;
 
-
   /// The exact callback handed to [SchedulerBinding.addTimingsCallback], kept
   /// so [uninstall] removes that one rather than a fresh tear-off.
   late final TimingsCallback _timingsCallback = _onTimings;

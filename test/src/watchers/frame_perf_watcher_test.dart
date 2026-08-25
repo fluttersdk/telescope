@@ -94,7 +94,8 @@ void main() {
         expect(records.single.totalSpanMicros, 8000);
       });
 
-      testWidgets('a SECOND watcher instance does not double the liveness '
+      testWidgets(
+          'a SECOND watcher instance does not double the liveness '
           'counter', (WidgetTester tester) async {
         // Two registrations is the expected case, not a mistake:
         // MagicPerfIntegration registers one and this class's own docs tell a
@@ -213,8 +214,7 @@ void main() {
 
         fireTimings(<FrameTiming>[buildTiming(frameNumber: 99)]);
 
-        final FramePerfRecord record =
-            TelescopeStore.recentFramePerf().single;
+        final FramePerfRecord record = TelescopeStore.recentFramePerf().single;
         expect(record.frameNumber, 99);
         expect(record.buildMicros, 5000);
         expect(record.blocks, isNotEmpty);
@@ -228,8 +228,7 @@ void main() {
         await tester.pumpWidget(const SizedBox.shrink());
         fireTimings(<FrameTiming>[buildTiming(frameNumber: 3)]);
 
-        final FramePerfRecord record =
-            TelescopeStore.recentFramePerf().single;
+        final FramePerfRecord record = TelescopeStore.recentFramePerf().single;
         expect(record.frameNumber, 3);
         expect(record.blocks, isEmpty);
       });

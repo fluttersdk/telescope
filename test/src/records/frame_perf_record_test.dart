@@ -63,8 +63,7 @@ void main() {
       });
     });
 
-    test('toJson serializes a non-empty block map as nested micros/count',
-        () {
+    test('toJson serializes a non-empty block map as nested micros/count', () {
       final record = FramePerfRecord(
         frameNumber: 8,
         buildMicros: 900,
@@ -159,7 +158,8 @@ void main() {
       expect(recent.last.frameNumber, equals(14));
     });
 
-    test('recording many frames leaves the shared _cap (other buffers) '
+    test(
+        'recording many frames leaves the shared _cap (other buffers) '
         'untouched', () {
       TelescopeStore.setFramePerfCapacity(10);
 
@@ -209,8 +209,7 @@ void main() {
       expect(TelescopeStore.recentHttp(), isNotEmpty);
     });
 
-    test('resetForTesting() empties the frame buffer and restores its cap',
-        () {
+    test('resetForTesting() empties the frame buffer and restores its cap', () {
       TelescopeStore.setFramePerfCapacity(5);
 
       for (var i = 0; i < 8; i++) {
