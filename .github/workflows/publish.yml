@@ -58,7 +58,7 @@ jobs:
             echo "No CHANGELOG section found for [$VERSION]; falling back to a stub." >&2
             echo "Release $VERSION. See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md) for details." > /tmp/release-notes.md
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
