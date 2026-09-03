@@ -11,9 +11,14 @@ Flutter SDK package (Dart 3.4+, Flutter 3.22+). Plugin of `fluttersdk_artisan ^0
 `TelescopeArtisanProvider` with 7 CLI commands plus 10 MCP tools backed by 12 `ext.telescope.*` VM Service
 extensions.
 
-Production deps are hosted only (no `pubspec_overrides.yaml`): `fluttersdk_artisan ^0.0.8`, `logging ^1.2.0`,
+Production deps are hosted: `fluttersdk_artisan ^0.0.8`, `logging ^1.2.0`,
 `meta ^1.16.0`. Dev deps: `flutter_test`, `flutter_lints ^5.0.0`. Debug-only at the consumer call site: the
 consumer wraps `TelescopePlugin.install()` in `if (kDebugMode)` so release builds tree-shake the subsystem.
+
+Local sibling development points those hosted constraints at the working trees through a gitignored
+`pubspec_overrides.yaml`. Its paths must be ABSOLUTE: `.worktreeinclude` copies the file into worktrees under
+`.claude/worktrees/<slug>`, where a relative `../artisan` resolves to `.claude/worktrees/artisan` and fails
+version solving on the first path dependency.
 
 Two CLI surfaces. `bin/fluttersdk_telescope.dart` is the Flutter-free wrapper, canonical install bootstrap:
 `dart run fluttersdk_telescope telescope:install` works from a fresh consumer. `install.yaml` at the package
