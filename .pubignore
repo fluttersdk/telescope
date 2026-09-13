@@ -48,6 +48,9 @@ example/packages/*/pubspec.lock
 # ---------------------------------------------------------------------------
 build/
 coverage/
+# MCP registry manifest, published by hand to registry.modelcontextprotocol.io.
+# Repo configuration, not package content: a consumer never reads it.
+server.json
 .dart_tool/
 **/doc/api/
 .flutter-plugins-dependencies
