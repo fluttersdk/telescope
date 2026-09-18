@@ -17,7 +17,7 @@ which carries the artisan substrate, so no prior `fluttersdk_artisan` setup is r
 |:-----------|:----------------|:------|
 | Dart SDK | `>= 3.4.0` | |
 | Flutter SDK | `>= 3.22.0` | VM Service extensions require the Flutter runtime. |
-| fluttersdk_artisan | `^0.0.2` | Pulled in transitively by telescope; no manual setup needed for the install path. |
+| fluttersdk_artisan | `^0.0.16` | Pulled in transitively by telescope; no manual setup needed for the install path. |
 | Magic stack | optional | Enables 6 additional Magic-specific watchers. |
 
 <a name="option-a-one-shot-install"></a>
