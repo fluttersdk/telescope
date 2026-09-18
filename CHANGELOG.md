@@ -8,10 +8,17 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+---
+
+## [0.0.6] - 2026-09-19
+
 ### Added
 
 - **`server.json`, the manifest that lists this package on the official MCP registry.** The ecosystem was absent from every MCP directory, so an agent looking for a Flutter runtime inspector had no way to find it. The entry carries `repository` and `websiteUrl` and deliberately no `packages` block: `registryType` documents npm, pypi, oci, nuget and mcpb with no pub equivalent, and both `packages` and `remotes` are optional on `ServerDetail`, which requires only name, description and version. Nothing in the package reads the file and no workflow publishes it, so `test/server_json_version_test.dart` guards the version against `pubspec.yaml`, along with the schema's 100 character description cap. Excluded from the pub archive as repo configuration rather than package content. (`server.json`, `.pubignore`, `test/server_json_version_test.dart`)
 
+### Changed
+
+- **The `fluttersdk_artisan` floor moves `^0.0.8` to `^0.0.16`.** telescope is a plugin on artisan, and 0.0.16 is where a plugin injection that matches nothing stops reporting Success over a file it never touched. The old range admitted 0.0.16 already, so nothing resolves differently on a fresh `pub get`; what changes is that the floor names the release this package is verified against. The requirements tables in `doc/getting-started/index.md` and `doc/getting-started/installation.md` said `^0.0.2` and `CLAUDE.md` said `^0.0.8`, both stale enough to mislead a reader who pins from them. (`pubspec.yaml`, `doc/getting-started/index.md`, `doc/getting-started/installation.md`, `CLAUDE.md`)
 ---
 
 ## [0.0.5] - 2026-08-25
