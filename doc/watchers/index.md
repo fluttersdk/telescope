@@ -93,7 +93,7 @@ selective watcher exclusion is needed.
 | Auto-install | No (opt-in via `TelescopePlugin.registerWatcher(ExceptionWatcher())` after install) |
 | Ring buffer | `TelescopeStore._exceptions` |
 | VM extension | `ext.telescope.exceptions` |
-| Opt-out | Simply do not register; absent registration means no error capture. To coexist with Sentry / Bugsnag, register telescope FIRST so the chain-preserve wraps the next handler. |
+| Opt-out | Simply do not register; absent registration means no error capture. To coexist with Sentry / Bugsnag, install them BEFORE telescope: the chain-preserve wraps the handler that was already there, so a reporter installed after telescope keeps receiving errors only if it preserves the chain itself. |
 
 Hooks both `FlutterError.onError` (synchronous framework and widget errors) and
 `PlatformDispatcher.instance.onError` (asynchronous errors, isolate errors, plugin-originated
