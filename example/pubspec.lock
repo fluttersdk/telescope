@@ -116,11 +116,12 @@ packages:
     source: sdk
     version: "0.0.0"
   fluttersdk_artisan:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
-      path: "../../artisan"
-      relative: true
-    source: path
+      name: fluttersdk_artisan
+      sha256: "1b905fa27f746120829fee8970412af8f21b8fb7005f4886da5f2e84960db0bc"
+      url: "https://pub.dev"
+    source: hosted
     version: "0.0.16"
   fluttersdk_telescope:
     dependency: "direct main"
@@ -128,7 +129,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.6"
+    version: "0.0.7"
   http_parser:
     dependency: transitive
     description:
