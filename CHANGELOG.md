@@ -10,6 +10,14 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ---
 
+## [0.0.7] - 2026-09-22
+
+### Fixed
+
+- **The exception watcher's coexistence note gives the order the code requires: Sentry or Bugsnag first, telescope second.** The watcher table said to register telescope FIRST so the chain-preserve wraps the next handler. The chain-preserve saves the handler already in place and calls it after its own capture, so it wraps the PREVIOUS one, and the example further down the same page already installed Sentry first. Following the table left a reporter installed after telescope receiving errors only if that reporter preserves the chain itself. Documentation only; no code moved. (`doc/watchers/index.md`) (#33)
+
+---
+
 ## [0.0.6] - 2026-09-19
 
 ### Added
