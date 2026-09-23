@@ -34,6 +34,21 @@ void main() {
       expect(record.attributedHeuristically, isFalse);
     });
 
+    test('isSlow compares the duration against the threshold, inclusive', () {
+      HttpRequestRecord record(int ms) => HttpRequestRecord(
+            url: 'https://api.uptizm.com/monitors',
+            method: 'GET',
+            statusCode: 200,
+            durationMs: ms,
+            isError: false,
+            timestamp: timestamp,
+          );
+
+      expect(record(999).isSlow(), isFalse);
+      expect(record(1000).isSlow(), isTrue);
+      expect(record(250).isSlow(thresholdMs: 200), isTrue);
+    });
+
     test('constructor sets optional fields when provided', () {
       final record = HttpRequestRecord(
         url: 'https://api.uptizm.com/monitors',

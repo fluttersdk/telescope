@@ -27,6 +27,9 @@ class HttpRequestRecord {
   /// (concurrent requests in flight). The attribution is best-effort FIFO.
   final bool attributedHeuristically;
 
+  /// Whether this request took at least [thresholdMs] milliseconds.
+  bool isSlow({int thresholdMs = 1000}) => durationMs >= thresholdMs;
+
   Map<String, dynamic> toJson() => {
         'url': url,
         'method': method,
