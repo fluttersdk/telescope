@@ -8,7 +8,7 @@ Guidance for Claude Code working in the `fluttersdk_telescope` repo. Path-scoped
 ## Stack
 
 Flutter SDK package (Dart 3.4+, Flutter 3.22+). Plugin of `fluttersdk_artisan ^0.0.8`: contributes
-`TelescopeArtisanProvider` with 6 CLI commands plus 9 MCP tools backed by 11 `ext.telescope.*` VM Service
+`TelescopeArtisanProvider` with 10 CLI commands plus 10 MCP tools backed by 12 `ext.telescope.*` VM Service
 extensions.
 
 Production deps are hosted only (no `pubspec_overrides.yaml`): `fluttersdk_artisan ^0.0.8`, `logging ^1.2.0`,
@@ -84,7 +84,6 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 - `TelescopeStore` public methods (`recordX` / `recentX` / `onXRecord` for all 9 buffers, plus `clear` / `pause` / `resume`) are frozen; magic-side calls them directly.
 - `install.yaml` at the package root is load-bearing for `plugin:install fluttersdk_telescope`. Do not delete; the V1 manifest carries the post-install bootstrap message and the `executables:` mapping anchor.
 - No new production dependencies beyond `fluttersdk_artisan`, `logging`, `meta`. The vanilla `example/` app may add its own demo deps (Dio, `package:logging`).
-- No CLI command additions for events / gates / dumps in the 0.0.1 line. MCP-only access for these three watchers is intentional; CLI parity remains V1.x backlog.
 - `DumpWatcher` must not capture in release builds. The `kDebugMode` guard at install time is load-bearing.
 
 ## Style

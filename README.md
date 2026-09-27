@@ -49,7 +49,7 @@ After install, the consumer gets the artisan fast-cli at `./bin/fsa` (native AOT
 |:--|:--------|:------------|
 | 👁 | **10 Watchers** | LogWatcher, ExceptionWatcher, DumpWatcher, FramePerfWatcher, plus 6 Magic-specific adapters covering HTTP, models, cache, events, gates, and DB queries |
 | 🤖 | **10 MCP Tools** | `telescope_requests`, `telescope_tail`, `telescope_exceptions`, `telescope_events`, `telescope_gates`, `telescope_dumps`, `telescope_queries`, `telescope_caches`, `telescope_frames`, `telescope_clear` |
-| 🖥 | **7 CLI Commands** | `telescope:install`, `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches`, `telescope:frames`, `telescope:clear` |
+| 🖥 | **10 CLI Commands** | `telescope:install`, `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches`, `telescope:events`, `telescope:gates`, `telescope:dumps`, `telescope:frames`, `telescope:clear` |
 | 🔌 | **Adapter Contract** | `TelescopeHttpAdapter` (abstract, 3-method shape) for plugging any HTTP client; ships `DioHttpAdapter` for vanilla Dio |
 | 📋 | **10 Record Types** | Immutable: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord`, `FramePerfRecord` |
 | 📡 | **VM Service Extensions** | 12 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.frames`, `.clear`, `.pause`, `.resume` |
@@ -184,6 +184,9 @@ Registered via `TelescopeArtisanProvider.commands()`. After `telescope:install` 
 | `telescope:requests` | Print the HTTP request buffer (paginated). |
 | `telescope:queries` | Print the DB query buffer (paginated). |
 | `telescope:caches` | Print the cache operation buffer (paginated). |
+| `telescope:events` | Print the in-app event buffer (paginated). |
+| `telescope:gates` | Print the Gate authorization check buffer (paginated). |
+| `telescope:dumps` | Print the `debugPrint` dump buffer (paginated). |
 | `telescope:frames` | Print the per-frame performance buffer (paginated). |
 | `telescope:clear` | Flush all buffers atomically. |
 
@@ -210,7 +213,7 @@ lib/
     ├── adapters/               # TelescopeHttpAdapter abstract contract + DioHttpAdapter concrete impl
     ├── records/                # Immutable record types: HttpRequestRecord, LogRecordEntry, ExceptionRecord, etc.
     ├── extensions/             # registerAllTelescopeExtensions() aggregator + per-concern VM Service handlers
-    ├── commands/               # TelescopeInstallCommand + 5 tail/query/clear commands
+    ├── commands/               # TelescopeInstallCommand + 9 read/clear commands
     ├── telescope_store.dart    # 10-buffer ring store (singleton); Queue<T> per buffer + broadcast StreamController<T>
     ├── telescope_plugin.dart   # TelescopePlugin.install() entry + registerHttpAdapter() + registerWatcher()
     └── telescope_artisan_provider.dart  # TelescopeArtisanProvider: 7 commands + 10 MCP tool descriptors

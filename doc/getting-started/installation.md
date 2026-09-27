@@ -180,13 +180,14 @@ Expected output on a running app shows the most recent log records from the ring
 If you see `Error: no running app found`, the artisan state file is missing: run
 `./bin/fsa start` first, then retry `telescope:tail`.
 
-To confirm all 7 CLI commands are registered, list the artisan command catalog:
+To confirm all 10 CLI commands are registered, list the artisan command catalog:
 
 ```bash
 ./bin/fsa list
 ```
 
 The output includes the `telescope:` namespace with `telescope:install`, `telescope:tail`,
-`telescope:requests`, `telescope:queries`, `telescope:caches`, and `telescope:clear`. If
+`telescope:requests`, `telescope:queries`, `telescope:caches`, `telescope:events`,
+`telescope:gates`, `telescope:dumps`, `telescope:frames`, and `telescope:clear`. If
 the fast-cli is missing for any reason, the same commands run via `dart run fluttersdk_telescope list`
 or `dart run fluttersdk_artisan list`.
