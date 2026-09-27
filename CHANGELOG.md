@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+---
+
+## [0.0.8] - 2026-09-28
+
 ### Added
 
 - **`telescope:events`, `telescope:gates` and `telescope:dumps`, the CLI mirrors of the three MCP-only buffers.** A consumer that drives the app from a shell instead of wiring the MCP server (whose 58 tool schemas cost an agent context on every turn) had no way to read event, gate or `debugPrint` records at all. Each command reads its `ext.telescope.*` extension, takes `--limit` (default 50), prints one line per record and warns on an empty buffer, the same shape as `telescope:queries`. `exceptions` stays MCP-only; `dusk:exceptions` reads that buffer from a shell. (`lib/src/commands/telescope_{events,gates,dumps}_command.dart`)
