@@ -46,8 +46,9 @@ Verify the provider registered correctly. From now on, the artisan fast-cli at `
 ./bin/fsa list
 ```
 
-You should see the `telescope:` namespace with 6 commands: `telescope:install`,
+You should see the `telescope:` namespace with 10 commands: `telescope:install`,
 `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches`,
+`telescope:events`, `telescope:gates`, `telescope:dumps`, `telescope:frames`,
 `telescope:clear`. The same surface is also reachable via the ~3s cold-start fallbacks
 `dart run fluttersdk_telescope list` and `dart run fluttersdk_artisan list`.
 

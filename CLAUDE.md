@@ -8,7 +8,7 @@ Guidance for Claude Code working in the `fluttersdk_telescope` repo. Path-scoped
 ## Stack
 
 Flutter SDK package (Dart 3.4+, Flutter 3.22+). Plugin of `fluttersdk_artisan ^0.0.16`: contributes
-`TelescopeArtisanProvider` with 7 CLI commands plus 10 MCP tools backed by 12 `ext.telescope.*` VM Service
+`TelescopeArtisanProvider` with 10 CLI commands plus 10 MCP tools backed by 12 `ext.telescope.*` VM Service
 extensions.
 
 Production deps are hosted: `fluttersdk_artisan ^0.0.16`, `logging ^1.2.0`,
@@ -64,7 +64,7 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 | `adapters/` | `TelescopeHttpAdapter` contract + `DioHttpAdapter`. |
 | `records/` | 10 immutable record types: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord`, `FramePerfRecord`. |
 | `extensions/` | 12 `ext.telescope.*` VM Service handlers + `registerAllTelescopeExtensions()` aggregator. |
-| `commands/` | 7 `TelescopeXCommand` (install, tail, requests, queries, caches, frames, clear). |
+| `commands/` | 10 `TelescopeXCommand` (install, tail, requests, queries, caches, events, gates, dumps, frames, clear). |
 | `telescope_store.dart` | 10-buffer ring store (singleton). `Queue<T>` plus broadcast `StreamController<T>` per buffer. Default capacity 500, except frame perf at 3600 with its own field. |
 | `telescope_plugin.dart` | `TelescopePlugin.install()` + `registerHttpAdapter()` + `registerWatcher()` entry points. |
 | `telescope_artisan_provider.dart` | `TelescopeArtisanProvider extends ArtisanServiceProvider`. |
@@ -89,7 +89,6 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 - `TelescopeStore` public methods (`recordX` / `recentX` / `onXRecord` for all 10 buffers, plus `clear` / `clearFramePerf` / `pause` / `resume`) are frozen; magic-side calls them directly.
 - `install.yaml` at the package root is load-bearing for `plugin:install fluttersdk_telescope`. Do not delete; the V1 manifest carries the post-install bootstrap message and the `executables:` mapping anchor.
 - No new production dependencies beyond `fluttersdk_artisan`, `logging`, `meta`. The vanilla `example/` app may add its own demo deps (Dio, `package:logging`).
-- No CLI command additions for events / gates / dumps in the 0.0.1 line. MCP-only access for these three watchers is intentional; CLI parity remains V1.x backlog.
 - `DumpWatcher` must not capture in release builds. The `kDebugMode` guard at install time is load-bearing.
 
 ## Style
