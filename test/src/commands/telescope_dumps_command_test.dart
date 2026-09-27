@@ -35,6 +35,10 @@ void main() {
       expect(TelescopeDumpsCommand().boot, equals(CommandBoot.connected));
     });
 
+    test('description is non-empty', () {
+      expect(TelescopeDumpsCommand().description, isNotEmpty);
+    });
+
     test('signature declares --limit option with default 50', () {
       expect(TelescopeDumpsCommand().signature, contains('--limit=50'));
     });

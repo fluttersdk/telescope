@@ -35,6 +35,10 @@ void main() {
       expect(TelescopeGatesCommand().boot, equals(CommandBoot.connected));
     });
 
+    test('description is non-empty', () {
+      expect(TelescopeGatesCommand().description, isNotEmpty);
+    });
+
     test('signature declares --limit option with default 50', () {
       expect(TelescopeGatesCommand().signature, contains('--limit=50'));
     });
@@ -92,6 +96,30 @@ void main() {
       expect(output.content, contains('denied'));
       expect(output.content, contains('user=3'));
       expect(output.content, contains('[Monitor]'));
+    });
+
+    test('handle prints allowed and omits user when none was authenticated',
+        () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {}),
+        output: output,
+        response: const {
+          'gates': [
+            {
+              'time': '2026-09-28T10:00:00.000Z',
+              'ability': 'monitors.view',
+              'result': true,
+              'arguments': <dynamic>[],
+            },
+          ],
+        },
+      );
+
+      await TelescopeGatesCommand().handle(ctx);
+
+      expect(output.content, contains('monitors.view allowed arguments=[]'));
+      expect(output.content, isNot(contains('user=')));
     });
   });
 }

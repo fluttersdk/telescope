@@ -35,6 +35,10 @@ void main() {
       expect(TelescopeEventsCommand().boot, equals(CommandBoot.connected));
     });
 
+    test('description is non-empty', () {
+      expect(TelescopeEventsCommand().description, isNotEmpty);
+    });
+
     test('signature declares --limit option with default 50', () {
       expect(TelescopeEventsCommand().signature, contains('--limit=50'));
     });
@@ -90,6 +94,28 @@ void main() {
       expect(output.content, contains('MonitorCreated'));
       expect(output.content, contains('{id: 7}'));
       expect(output.content, contains('listeners=2'));
+    });
+
+    test('handle omits listeners when the count was not recorded', () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {}),
+        output: output,
+        response: const {
+          'events': [
+            {
+              'time': '2026-09-28T10:00:00.000Z',
+              'eventType': 'AuthLogin',
+              'payload': <String, dynamic>{},
+            },
+          ],
+        },
+      );
+
+      await TelescopeEventsCommand().handle(ctx);
+
+      expect(output.content, contains('AuthLogin {}'));
+      expect(output.content, isNot(contains('listeners=')));
     });
   });
 }

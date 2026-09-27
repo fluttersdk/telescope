@@ -210,4 +210,27 @@ void main() {
       expect(frames.description, contains('Usage:'));
     });
   });
+
+  group('TelescopeArtisanProvider.commands()', () {
+    test('registers every telescope CLI command, in order', () {
+      final names =
+          TelescopeArtisanProvider().commands().map((c) => c.name).toList();
+
+      expect(
+        names,
+        equals(<String>[
+          'telescope:install',
+          'telescope:tail',
+          'telescope:requests',
+          'telescope:queries',
+          'telescope:caches',
+          'telescope:events',
+          'telescope:gates',
+          'telescope:dumps',
+          'telescope:frames',
+          'telescope:clear',
+        ]),
+      );
+    });
+  });
 }
