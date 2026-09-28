@@ -38,11 +38,15 @@ class TelescopeFramesCommand extends ArtisanCommand {
       return 0;
     }
     for (final r in records) {
+      final linkSuffix = r['interactionId'] != null
+          ? ' interactionId=${r['interactionId']} linkedBy=${r['linkedBy']}'
+          : '';
       ctx.output.writeln(
-        '${r['time']} frame#${r['frameNumber']} '
+        '${r['time']} frame#${r['frameNumber']} atUs=${r['atUs']} '
+        'vsyncStartUs=${r['vsyncStartUs']} '
         'build=${r['buildMicros']}us raster=${r['rasterMicros']}us '
         'vsync=${r['vsyncOverheadMicros']}us total=${r['totalSpanMicros']}us '
-        'blocks=${r['blocks']}',
+        'blocks=${r['blocks']}$linkSuffix',
       );
     }
     ctx.output.writeln('livenessCounter=$livenessCounter');

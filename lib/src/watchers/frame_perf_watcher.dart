@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FramePhase;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -84,8 +85,9 @@ class FramePerfWatcher implements TelescopeWatcher {
 
   /// Block maps drained but not yet joined to a [FrameTiming], keyed by
   /// [_nextDrainKey] at the time of the drain.
-  final Map<int, Map<String, ({int micros, int count})>> _pendingBlocks =
-      <int, Map<String, ({int micros, int count})>>{};
+  final Map<int, Map<String, ({int micros, int selfMicros, int count})>>
+      _pendingBlocks =
+      <int, Map<String, ({int micros, int selfMicros, int count})>>{};
 
   int _nextDrainKey = 0;
   int _nextJoinKey = 0;
@@ -203,10 +205,16 @@ class FramePerfWatcher implements TelescopeWatcher {
   /// harness reaches the same point by overriding `frameDidDraw()`, which a
   /// watcher cannot do without replacing the binding.
   void _park(int key, AggregatedTimings timings) {
-    final Map<String, ({int micros, int count})> blocks =
-        <String, ({int micros, int count})>{
+    final Map<String, double> selfMicrosByName =
+        _selfMicrosByName(timings.timedBlocks);
+    final Map<String, ({int micros, int selfMicros, int count})> blocks =
+        <String, ({int micros, int selfMicros, int count})>{
       for (final AggregatedTimedBlock block in timings.aggregatedBlocks)
-        block.name: (micros: block.duration.round(), count: block.count),
+        block.name: (
+          micros: block.duration.round(),
+          selfMicros: (selfMicrosByName[block.name] ?? 0).round(),
+          count: block.count,
+        ),
     };
     if (blocks.isEmpty) return;
 
@@ -214,6 +222,58 @@ class FramePerfWatcher implements TelescopeWatcher {
     while (_pendingBlocks.length > _maxPendingFrames) {
       _pendingBlocks.remove(_pendingBlocks.keys.first);
     }
+  }
+
+  /// Computes each block's exclusive (self) duration by subtracting the
+  /// combined duration of its directly nested children, then aggregates self
+  /// time per block name the same way [AggregatedTimings.aggregatedBlocks]
+  /// aggregates the inclusive duration.
+  ///
+  /// Blocks nest by construction: [FlutterTimeline.startSync] /
+  /// [FlutterTimeline.finishSync] enforce a single global LIFO stack, so
+  /// every pair of [TimedBlock] intervals either contains or is disjoint
+  /// from the other; a partial overlap never occurs. Sorting by start (ties
+  /// broken by the longer block first, so an ancestor that starts in the
+  /// same instant as its first child is still opened before that child is
+  /// seen) turns that guarantee into a simple stack walk: a block whose
+  /// interval has already closed by the time the next one starts is popped
+  /// and its self time finalized (its own duration minus whatever was
+  /// attributed to its direct children); whatever remains open and contains
+  /// the next block's start is that block's immediate parent.
+  Map<String, double> _selfMicrosByName(List<TimedBlock> timedBlocks) {
+    final List<TimedBlock> sorted = List<TimedBlock>.of(timedBlocks)
+      ..sort((a, b) {
+        final int byStart = a.start.compareTo(b.start);
+        if (byStart != 0) return byStart;
+        return b.end.compareTo(a.end);
+      });
+
+    final List<_OpenBlock> stack = <_OpenBlock>[];
+    final Map<String, double> selfMicrosByName = <String, double>{};
+
+    void close(_OpenBlock open) {
+      final double selfDuration = open.block.duration - open.childrenDuration;
+      selfMicrosByName.update(
+        open.block.name,
+        (double previous) => previous + selfDuration,
+        ifAbsent: () => selfDuration,
+      );
+    }
+
+    for (final TimedBlock block in sorted) {
+      while (stack.isNotEmpty && stack.last.block.end <= block.start) {
+        close(stack.removeLast());
+      }
+      if (stack.isNotEmpty) {
+        stack.last.childrenDuration += block.duration;
+      }
+      stack.add(_OpenBlock(block));
+    }
+    while (stack.isNotEmpty) {
+      close(stack.removeLast());
+    }
+
+    return selfMicrosByName;
   }
 
   void _onTimings(List<FrameTiming> timings) {
@@ -250,7 +310,7 @@ class FramePerfWatcher implements TelescopeWatcher {
       // stamps agree. Session-wide `blockAttribution` is unaffected either
       // way, since it sums across frames; `worst_frames` is what would carry a
       // shifted map.
-      Map<String, ({int micros, int count})>? blocks;
+      Map<String, ({int micros, int selfMicros, int count})>? blocks;
       if (_nextJoinKey < _nextDrainKey) {
         blocks = _pendingBlocks.remove(_nextJoinKey);
         _nextJoinKey += 1;
@@ -266,10 +326,22 @@ class FramePerfWatcher implements TelescopeWatcher {
           rasterMicros: timing.rasterDuration.inMicroseconds,
           vsyncOverheadMicros: timing.vsyncOverhead.inMicroseconds,
           totalSpanMicros: timing.totalSpan.inMicroseconds,
+          vsyncStartUs: timing.timestampInMicroseconds(FramePhase.vsyncStart),
           time: DateTime.now(),
-          blocks: blocks ?? const <String, ({int micros, int count})>{},
+          blocks: blocks ??
+              const <String, ({int micros, int selfMicros, int count})>{},
         ),
       );
     }
   }
+}
+
+/// One [TimedBlock] still open on the stack walk in
+/// [FramePerfWatcher._selfMicrosByName], accumulating how much of its span
+/// its direct children have consumed so far.
+final class _OpenBlock {
+  _OpenBlock(this.block);
+
+  final TimedBlock block;
+  double childrenDuration = 0;
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluttersdk_telescope/src/records/event_record.dart';
@@ -43,6 +44,7 @@ void main() {
         eventType: 'UserLoggedIn',
         payload: {'userId': '42'},
         time: time,
+        atUs: 999,
       );
 
       expect(
@@ -51,6 +53,7 @@ void main() {
             'eventType': 'UserLoggedIn',
             'payload': {'userId': '42'},
             'time': time.toIso8601String(),
+            'atUs': 999,
           }));
     });
 
@@ -75,6 +78,63 @@ void main() {
       );
 
       expect(record.toJson().containsKey('listenerCount'), isFalse);
+    });
+
+    // -------------------------------------------------------------------------
+    // Clock, interaction link (shared shape across every telescope record)
+    // -------------------------------------------------------------------------
+
+    test('atUs defaults to FlutterTimeline.now captured at construction', () {
+      final int before = FlutterTimeline.now;
+      final record = EventRecord(
+        eventType: 'UserLoggedIn',
+        payload: {'userId': '42'},
+        time: time,
+      );
+      final int after = FlutterTimeline.now;
+
+      expect(record.atUs, inInclusiveRange(before, after));
+    });
+
+    test('atUs accepts an explicit override', () {
+      final record = EventRecord(
+        eventType: 'UserLoggedIn',
+        payload: {'userId': '42'},
+        time: time,
+        atUs: 555,
+      );
+
+      expect(record.atUs, equals(555));
+    });
+
+    test('interactionId and linkedBy default to null and toJson omits them',
+        () {
+      final record = EventRecord(
+        eventType: 'UserLoggedIn',
+        payload: {'userId': '42'},
+        time: time,
+      );
+
+      expect(record.interactionId, isNull);
+      expect(record.linkedBy, isNull);
+
+      final json = record.toJson();
+      expect(json.containsKey('interactionId'), isFalse);
+      expect(json.containsKey('linkedBy'), isFalse);
+    });
+
+    test('interactionId and linkedBy are set and serialized when provided', () {
+      final record = EventRecord(
+        eventType: 'UserLoggedIn',
+        payload: {'userId': '42'},
+        time: time,
+        interactionId: 'tap-1',
+        linkedBy: 'frame',
+      );
+
+      final json = record.toJson();
+      expect(json['interactionId'], equals('tap-1'));
+      expect(json['linkedBy'], equals('frame'));
     });
 
     // -------------------------------------------------------------------------

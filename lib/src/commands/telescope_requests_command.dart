@@ -33,8 +33,14 @@ class TelescopeRequestsCommand extends ArtisanCommand {
     }
     for (final m in records) {
       final r = m as Map<String, dynamic>;
+      final requestIdSuffix =
+          r['requestId'] != null ? ' requestId=${r['requestId']}' : '';
+      final linkSuffix = r['interactionId'] != null
+          ? ' interactionId=${r['interactionId']} linkedBy=${r['linkedBy']}'
+          : '';
       ctx.output.writeln(
-        '${r['timestamp']} ${r['method']} ${r['url']} → ${r['statusCode']} (${r['durationMs']}ms)',
+        '${r['timestamp']} ${r['method']} ${r['url']} → ${r['statusCode']} '
+        '(${r['durationMs']}ms) atUs=${r['atUs']}$requestIdSuffix$linkSuffix',
       );
     }
     return 0;

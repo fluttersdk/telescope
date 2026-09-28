@@ -33,7 +33,18 @@ while every other in-app health signal keeps reading healthy).
 
 Attribution only flows while `FlutterTimeline.debugCollectionEnabled` is true, which a measurement
 session turns on. Until then the watcher records frame magnitude alone and every record's `blocks`
-map is empty.
+map is empty. Each block entry carries `micros` (inclusive of nested children), `selfMicros`
+(exclusive: `micros` minus the combined duration of directly nested children), and `count`.
+
+## Clock and interaction link
+
+Every record carries `atUs`, a monotonic microsecond timestamp from `FlutterTimeline.now`, and the
+optional `interactionId` / `linkedBy` pair that correlates it to other records captured during the
+same interaction. `vsyncStartUs` (from `FrameTiming.timestampInMicroseconds(FramePhase.vsyncStart)`)
+rides alongside `atUs` but its clock parity with `atUs` is NOT proven: the engine documents its
+timestamp only as microseconds "from some epoch" shared across every `FrameTiming` field, and a unit
+test can only inject synthetic `FrameTiming` values, never a real engine-reported one. Treat
+`vsyncStartUs` vs. `atUs` comparisons as needing a driven, live-engine run to validate.
 
 ## Registration
 

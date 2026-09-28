@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluttersdk_telescope/src/records/http_request_record.dart';
@@ -66,6 +67,7 @@ void main() {
         durationMs: 123,
         isError: false,
         timestamp: timestamp,
+        atUs: 999,
       );
 
       expect(
@@ -77,6 +79,7 @@ void main() {
           'durationMs': 123,
           'isError': false,
           'timestamp': timestamp.toIso8601String(),
+          'atUs': 999,
         }),
       );
     });
@@ -122,6 +125,103 @@ void main() {
       expect(json.containsKey('requestBody'), isFalse);
       expect(json.containsKey('responseBody'), isFalse);
       expect(json.containsKey('attributedHeuristically'), isFalse);
+      expect(json.containsKey('requestId'), isFalse);
+      expect(json.containsKey('startUs'), isFalse);
+      expect(json.containsKey('endUs'), isFalse);
+      expect(json.containsKey('interactionId'), isFalse);
+      expect(json.containsKey('linkedBy'), isFalse);
+    });
+
+    // -------------------------------------------------------------------------
+    // Clock, request pairing, interaction link
+    // -------------------------------------------------------------------------
+
+    test('requestId, startUs and endUs default to null', () {
+      final record = HttpRequestRecord(
+        url: 'https://api.uptizm.com/monitors',
+        method: 'GET',
+        statusCode: 200,
+        durationMs: 123,
+        isError: false,
+        timestamp: timestamp,
+      );
+
+      expect(record.requestId, isNull);
+      expect(record.startUs, isNull);
+      expect(record.endUs, isNull);
+    });
+
+    test('requestId, startUs and endUs are set and serialized when provided',
+        () {
+      final record = HttpRequestRecord(
+        url: 'https://api.uptizm.com/monitors',
+        method: 'GET',
+        statusCode: 200,
+        durationMs: 123,
+        isError: false,
+        timestamp: timestamp,
+        requestId: 'req-42',
+        startUs: 10,
+        endUs: 20,
+      );
+
+      expect(record.requestId, equals('req-42'));
+      expect(record.startUs, equals(10));
+      expect(record.endUs, equals(20));
+
+      final json = record.toJson();
+      expect(json['requestId'], equals('req-42'));
+      expect(json['startUs'], equals(10));
+      expect(json['endUs'], equals(20));
+    });
+
+    test('atUs defaults to FlutterTimeline.now captured at construction', () {
+      final int before = FlutterTimeline.now;
+      final record = HttpRequestRecord(
+        url: 'https://api.uptizm.com/monitors',
+        method: 'GET',
+        statusCode: 200,
+        durationMs: 123,
+        isError: false,
+        timestamp: timestamp,
+      );
+      final int after = FlutterTimeline.now;
+
+      expect(record.atUs, inInclusiveRange(before, after));
+    });
+
+    test('atUs accepts an explicit override', () {
+      final record = HttpRequestRecord(
+        url: 'https://api.uptizm.com/monitors',
+        method: 'GET',
+        statusCode: 200,
+        durationMs: 123,
+        isError: false,
+        timestamp: timestamp,
+        atUs: 555,
+      );
+
+      expect(record.atUs, equals(555));
+    });
+
+    test('interactionId and linkedBy are set and serialized when provided', () {
+      final record = HttpRequestRecord(
+        url: 'https://api.uptizm.com/monitors',
+        method: 'GET',
+        statusCode: 200,
+        durationMs: 123,
+        isError: false,
+        timestamp: timestamp,
+        interactionId: 'tap-1',
+        linkedBy: 'zone',
+      );
+
+      expect(record.interactionId, equals('tap-1'));
+      expect(record.linkedBy, equals('zone'));
+
+      final json = record.toJson();
+      expect(json['interactionId'], equals('tap-1'));
+      expect(json['linkedBy'], equals('zone'));
     });
 
     test('JSON round-trip survives jsonEncode and jsonDecode', () {

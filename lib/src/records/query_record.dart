@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show FlutterTimeline;
+
 /// An immutable database query record captured by MagicQueryWatcher
 /// (shipped in `magic` package via TelescopePlugin.registerWatcher).
 class QueryRecord {
@@ -7,7 +9,10 @@ class QueryRecord {
     required this.timeMs,
     required this.time,
     this.connectionName = 'default',
-  });
+    int? atUs,
+    this.interactionId,
+    this.linkedBy,
+  }) : atUs = atUs ?? FlutterTimeline.now;
 
   /// The SQL string the QueryBuilder dispatched to the underlying driver.
   final String sql;
@@ -24,11 +29,28 @@ class QueryRecord {
   final String connectionName;
   final DateTime time;
 
+  /// Monotonic microsecond timestamp from `FlutterTimeline.now`, captured at
+  /// construction unless the caller supplies one explicitly. Comparable
+  /// across every telescope record type regardless of wall-clock skew;
+  /// [time] stays the wall-clock field for display.
+  final int atUs;
+
+  /// Correlates this record to others captured during the same logical
+  /// interaction (a tap, a navigation), when the capturing site knows one.
+  final String? interactionId;
+
+  /// How [interactionId] was derived: `zone` | `frame` | `window`. Null when
+  /// [interactionId] is null.
+  final String? linkedBy;
+
   Map<String, dynamic> toJson() => {
         'sql': sql,
         'bindings': bindings,
         'timeMs': timeMs,
         'connectionName': connectionName,
         'time': time.toIso8601String(),
+        'atUs': atUs,
+        if (interactionId != null) 'interactionId': interactionId,
+        if (linkedBy != null) 'linkedBy': linkedBy,
       };
 }

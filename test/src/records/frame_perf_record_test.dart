@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluttersdk_telescope/src/records/frame_perf_record.dart';
@@ -22,8 +23,8 @@ void main() {
         vsyncOverheadMicros: 500,
         totalSpanMicros: 5100,
         time: fixedTime,
-        blocks: const <String, ({int micros, int count})>{
-          'Widget.build': (micros: 800, count: 4),
+        blocks: const <String, ({int micros, int selfMicros, int count})>{
+          'Widget.build': (micros: 800, selfMicros: 500, count: 4),
         },
       );
 
@@ -35,8 +36,8 @@ void main() {
       expect(record.time, equals(fixedTime));
       expect(
         record.blocks,
-        equals(<String, ({int micros, int count})>{
-          'Widget.build': (micros: 800, count: 4),
+        equals(<String, ({int micros, int selfMicros, int count})>{
+          'Widget.build': (micros: 800, selfMicros: 500, count: 4),
         }),
       );
     });
@@ -49,7 +50,8 @@ void main() {
         vsyncOverheadMicros: 10,
         totalSpanMicros: 310,
         time: fixedTime,
-        blocks: const <String, ({int micros, int count})>{},
+        blocks: const <String, ({int micros, int selfMicros, int count})>{},
+        atUs: 999,
       );
 
       expect(record.toJson(), <String, dynamic>{
@@ -60,10 +62,13 @@ void main() {
         'totalSpanMicros': 310,
         'time': '2026-08-25T12:00:00.000Z',
         'blocks': <String, dynamic>{},
+        'atUs': 999,
       });
     });
 
-    test('toJson serializes a non-empty block map as nested micros/count', () {
+    test(
+        'toJson serializes a non-empty block map as nested micros/selfMicros/count',
+        () {
       final record = FramePerfRecord(
         frameNumber: 8,
         buildMicros: 900,
@@ -71,24 +76,28 @@ void main() {
         vsyncOverheadMicros: 20,
         totalSpanMicros: 2020,
         time: fixedTime,
-        blocks: const <String, ({int micros, int count})>{
-          'RenderBox.layout': (micros: 300, count: 2),
-          'Widget.build': (micros: 600, count: 5),
+        blocks: const <String, ({int micros, int selfMicros, int count})>{
+          'RenderBox.layout': (micros: 300, selfMicros: 300, count: 2),
+          'Widget.build': (micros: 600, selfMicros: 400, count: 5),
         },
       );
 
       final json = record.toJson();
 
       expect(json['blocks'], <String, dynamic>{
-        'RenderBox.layout': {'micros': 300, 'count': 2},
-        'Widget.build': {'micros': 600, 'count': 5},
+        'RenderBox.layout': {'micros': 300, 'selfMicros': 300, 'count': 2},
+        'Widget.build': {'micros': 600, 'selfMicros': 400, 'count': 5},
       });
 
       final encoded = jsonEncode(json);
       final decoded = jsonDecode(encoded) as Map<String, dynamic>;
       expect(
         (decoded['blocks'] as Map<String, dynamic>)['Widget.build'],
-        equals(<String, dynamic>{'micros': 600, 'count': 5}),
+        equals(<String, dynamic>{
+          'micros': 600,
+          'selfMicros': 400,
+          'count': 5,
+        }),
       );
     });
 
@@ -101,7 +110,7 @@ void main() {
         vsyncOverheadMicros: 1,
         totalSpanMicros: 3,
         time: fixedTime,
-        blocks: const <String, ({int micros, int count})>{},
+        blocks: const <String, ({int micros, int selfMicros, int count})>{},
       );
       final b = FramePerfRecord(
         frameNumber: 1,
@@ -110,10 +119,94 @@ void main() {
         vsyncOverheadMicros: 1,
         totalSpanMicros: 3,
         time: fixedTime,
-        blocks: const <String, ({int micros, int count})>{},
+        blocks: const <String, ({int micros, int selfMicros, int count})>{},
       );
 
       expect(identical(a, b), isFalse);
+    });
+
+    // -------------------------------------------------------------------------
+    // Clock, interaction link (shared shape across every telescope record)
+    // -------------------------------------------------------------------------
+
+    test('atUs defaults to FlutterTimeline.now captured at construction', () {
+      final int before = FlutterTimeline.now;
+      final record = FramePerfRecord(
+        frameNumber: 1,
+        buildMicros: 1,
+        rasterMicros: 1,
+        vsyncOverheadMicros: 1,
+        totalSpanMicros: 3,
+        time: fixedTime,
+        blocks: const <String, ({int micros, int selfMicros, int count})>{},
+      );
+      final int after = FlutterTimeline.now;
+
+      expect(record.atUs, inInclusiveRange(before, after));
+    });
+
+    test('atUs accepts an explicit override', () {
+      final record = FramePerfRecord(
+        frameNumber: 1,
+        buildMicros: 1,
+        rasterMicros: 1,
+        vsyncOverheadMicros: 1,
+        totalSpanMicros: 3,
+        time: fixedTime,
+        blocks: const <String, ({int micros, int selfMicros, int count})>{},
+        atUs: 555,
+      );
+
+      expect(record.atUs, equals(555));
+    });
+
+    test(
+        'vsyncStartUs, interactionId and linkedBy default to null and '
+        'toJson omits them', () {
+      final record = FramePerfRecord(
+        frameNumber: 1,
+        buildMicros: 1,
+        rasterMicros: 1,
+        vsyncOverheadMicros: 1,
+        totalSpanMicros: 3,
+        time: fixedTime,
+        blocks: const <String, ({int micros, int selfMicros, int count})>{},
+      );
+
+      expect(record.vsyncStartUs, isNull);
+      expect(record.interactionId, isNull);
+      expect(record.linkedBy, isNull);
+
+      final json = record.toJson();
+      expect(json.containsKey('vsyncStartUs'), isFalse);
+      expect(json.containsKey('interactionId'), isFalse);
+      expect(json.containsKey('linkedBy'), isFalse);
+    });
+
+    test(
+        'vsyncStartUs, interactionId and linkedBy are set and serialized '
+        'when provided', () {
+      final record = FramePerfRecord(
+        frameNumber: 1,
+        buildMicros: 1,
+        rasterMicros: 1,
+        vsyncOverheadMicros: 1,
+        totalSpanMicros: 3,
+        time: fixedTime,
+        blocks: const <String, ({int micros, int selfMicros, int count})>{},
+        vsyncStartUs: 42,
+        interactionId: 'tap-1',
+        linkedBy: 'zone',
+      );
+
+      expect(record.vsyncStartUs, equals(42));
+      expect(record.interactionId, equals('tap-1'));
+      expect(record.linkedBy, equals('zone'));
+
+      final json = record.toJson();
+      expect(json['vsyncStartUs'], equals(42));
+      expect(json['interactionId'], equals('tap-1'));
+      expect(json['linkedBy'], equals('zone'));
     });
   });
 
@@ -125,7 +218,7 @@ void main() {
           vsyncOverheadMicros: n,
           totalSpanMicros: n * 3,
           time: fixedTime,
-          blocks: const <String, ({int micros, int count})>{},
+          blocks: const <String, ({int micros, int selfMicros, int count})>{},
         );
 
     test('recordFramePerf appends and recentFramePerf returns in order', () {

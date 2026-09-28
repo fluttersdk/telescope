@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show FlutterTimeline;
+
 /// An immutable Magic cache operation record captured by MagicCacheWatcher
 /// (shipped in `magic` package).
 class MagicCacheRecord {
@@ -6,7 +8,10 @@ class MagicCacheRecord {
     required this.key,
     required this.time,
     this.ttl,
-  });
+    int? atUs,
+    this.interactionId,
+    this.linkedBy,
+  }) : atUs = atUs ?? FlutterTimeline.now;
 
   /// 'put' | 'get' | 'forget' | 'hit' | 'miss'
   final String operation;
@@ -14,10 +19,27 @@ class MagicCacheRecord {
   final DateTime time;
   final Duration? ttl;
 
+  /// Monotonic microsecond timestamp from `FlutterTimeline.now`, captured at
+  /// construction unless the caller supplies one explicitly. Comparable
+  /// across every telescope record type regardless of wall-clock skew;
+  /// [time] stays the wall-clock field for display.
+  final int atUs;
+
+  /// Correlates this record to others captured during the same logical
+  /// interaction (a tap, a navigation), when the capturing site knows one.
+  final String? interactionId;
+
+  /// How [interactionId] was derived: `zone` | `frame` | `window`. Null when
+  /// [interactionId] is null.
+  final String? linkedBy;
+
   Map<String, dynamic> toJson() => {
         'operation': operation,
         'key': key,
         'time': time.toIso8601String(),
         if (ttl != null) 'ttlMs': ttl!.inMilliseconds,
+        'atUs': atUs,
+        if (interactionId != null) 'interactionId': interactionId,
+        if (linkedBy != null) 'linkedBy': linkedBy,
       };
 }

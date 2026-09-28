@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- **A monotonic clock, an interaction link, and exclusive self time land on every telescope record.** `HttpRequestRecord`, `QueryRecord`, `EventRecord`, `MagicModelRecord`, `MagicCacheRecord` and `FramePerfRecord` all gain `atUs` (an `int? atUs` constructor param stored as `atUs ?? FlutterTimeline.now`, comparable across record types regardless of wall-clock skew), `interactionId` (`String?`) and `linkedBy` (`String?`, one of `zone` / `frame` / `window`), all three serialized in `toJson`. `HttpRequestRecord` additionally carries `requestId`, `startUs` and `endUs` for exact request/response pairing. `FramePerfRecord` gains `vsyncStartUs` from `FrameTiming.timestampInMicroseconds(FramePhase.vsyncStart)`; its doc comment marks clock parity with `atUs` as needing live validation, since the engine documents that timestamp only as microseconds "from some epoch" and a widget test can only inject synthetic `FrameTiming` values, never a real engine-reported one. Every block in a `FramePerfRecord.blocks` map gains `selfMicros`: `FramePerfWatcher`'s drain now computes each block's exclusive duration from `AggregatedTimings.timedBlocks` start/end nesting (a stack walk over blocks sorted by start, tie-broken by the longer block first) and subtracts directly nested children from the existing inclusive `micros`. `telescope:frames` and `telescope:requests` print the new fields. Every new field is optional or defaulted, so every existing constructor call (including `magic_devtools/lib/src/telescope_integration.dart`) keeps compiling. (`lib/src/records/*.dart`, `lib/src/watchers/frame_perf_watcher.dart`, `lib/src/commands/telescope_{frames,requests}_command.dart`)
+
 ---
 
 ## [0.0.8] - 2026-09-28

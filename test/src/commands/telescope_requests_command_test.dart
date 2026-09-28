@@ -143,6 +143,65 @@ void main() {
       expect(output.content, contains('142'));
     });
 
+    test('formats atUs, requestId and the interaction link when present',
+        () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {}),
+        output: output,
+        response: {
+          'records': [
+            {
+              'timestamp': '2026-05-18T12:00:00.000Z',
+              'method': 'GET',
+              'url': 'https://api.example.com/monitors',
+              'statusCode': 200,
+              'durationMs': 142,
+              'atUs': 123456,
+              'requestId': 'req-42',
+              'interactionId': 'tap-1',
+              'linkedBy': 'zone',
+            },
+          ],
+        },
+      );
+
+      final code = await TelescopeRequestsCommand().handle(ctx);
+
+      expect(code, equals(0));
+      expect(output.content, contains('atUs=123456'));
+      expect(output.content, contains('requestId=req-42'));
+      expect(output.content, contains('interactionId=tap-1'));
+      expect(output.content, contains('linkedBy=zone'));
+    });
+
+    test('omits requestId and the interaction link when absent', () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {}),
+        output: output,
+        response: {
+          'records': [
+            {
+              'timestamp': '2026-05-18T12:00:00.000Z',
+              'method': 'GET',
+              'url': 'https://api.example.com/monitors',
+              'statusCode': 200,
+              'durationMs': 142,
+              'atUs': 123456,
+            },
+          ],
+        },
+      );
+
+      final code = await TelescopeRequestsCommand().handle(ctx);
+
+      expect(code, equals(0));
+      expect(output.content, isNot(contains('requestId')));
+      expect(output.content, isNot(contains('interactionId')));
+      expect(output.content, isNot(contains('linkedBy')));
+    });
+
     test('handle returns 0 on success', () async {
       final output = BufferedOutput();
       final ctx = _StubContext(

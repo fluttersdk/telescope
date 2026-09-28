@@ -15,11 +15,11 @@ import 'package:fluttersdk_telescope/src/watchers/frame_perf_watcher.dart';
 /// in this file is injected.
 FrameTiming buildTiming({
   int frameNumber = 1,
+  int vsyncStart = 0,
   int vsyncOverheadMicros = 1000,
   int buildMicros = 5000,
   int rasterMicros = 2000,
 }) {
-  const int vsyncStart = 0;
   final int buildStart = vsyncStart + vsyncOverheadMicros;
   final int buildFinish = buildStart + buildMicros;
   final int rasterStart = buildFinish;
@@ -221,6 +221,31 @@ void main() {
         expect(record.blocks['JoinProbe']?.count, 1);
       });
 
+      test('a record carries vsyncStartUs from the FrameTiming vsync phase',
+          () {
+        watcher.install();
+
+        fireTimings(
+          <FrameTiming>[buildTiming(frameNumber: 42, vsyncStart: 123456)],
+        );
+
+        final FramePerfRecord record = TelescopeStore.recentFramePerf().single;
+        expect(record.vsyncStartUs, equals(123456));
+      });
+
+      test(
+          'a record carries atUs, captured within FlutterTimeline.now '
+          'bounds around construction', () {
+        final int before = FlutterTimeline.now;
+        watcher.install();
+
+        fireTimings(<FrameTiming>[buildTiming(frameNumber: 7)]);
+        final int after = FlutterTimeline.now;
+
+        final FramePerfRecord record = TelescopeStore.recentFramePerf().single;
+        expect(record.atUs, inInclusiveRange(before, after));
+      });
+
       testWidgets('a timing with no block map still records, with an empty map',
           (WidgetTester tester) async {
         watcher.install();
@@ -231,6 +256,45 @@ void main() {
         final FramePerfRecord record = TelescopeStore.recentFramePerf().single;
         expect(record.frameNumber, 3);
         expect(record.blocks, isEmpty);
+      });
+
+      testWidgets(
+          'a block nested inside another has its inclusive duration '
+          'subtracted from the parent (A.selfMicros == A.micros - B.micros)',
+          (WidgetTester tester) async {
+        FlutterTimeline.debugCollectionEnabled = true;
+
+        watcher.install();
+
+        await tester.pumpWidget(
+          Builder(
+            builder: (BuildContext context) {
+              // Busy-work between the start/finish pairs so both blocks carry
+              // a measurable, non-zero duration; the assertion below holds
+              // algebraically regardless of the actual values it observes.
+              var total = 0;
+              FlutterTimeline.startSync('OuterBlock');
+              for (var i = 0; i < 2000; i++) {
+                total += i;
+              }
+              FlutterTimeline.startSync('InnerBlock');
+              for (var i = 0; i < 2000; i++) {
+                total += i;
+              }
+              FlutterTimeline.finishSync(); // InnerBlock
+              FlutterTimeline.finishSync(); // OuterBlock
+              return SizedBox(key: ValueKey<int>(total));
+            },
+          ),
+        );
+
+        fireTimings(<FrameTiming>[buildTiming(frameNumber: 64)]);
+
+        final FramePerfRecord record = TelescopeStore.recentFramePerf().single;
+        final outer = record.blocks['OuterBlock']!;
+        final inner = record.blocks['InnerBlock']!;
+
+        expect(outer.selfMicros, equals(outer.micros - inner.micros));
       });
     });
   });

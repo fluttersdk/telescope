@@ -30,6 +30,10 @@ Map<String, dynamic> _frame({
   int buildMicros = 5400,
   int rasterMicros = 2100,
   Map<String, dynamic> blocks = const <String, dynamic>{},
+  int? atUs,
+  int? vsyncStartUs,
+  String? interactionId,
+  String? linkedBy,
 }) =>
     <String, dynamic>{
       'time': '2026-08-25T10:00:00.000Z',
@@ -39,6 +43,10 @@ Map<String, dynamic> _frame({
       'vsyncOverheadMicros': 900,
       'totalSpanMicros': buildMicros + rasterMicros,
       'blocks': blocks,
+      if (atUs != null) 'atUs': atUs,
+      if (vsyncStartUs != null) 'vsyncStartUs': vsyncStartUs,
+      if (interactionId != null) 'interactionId': interactionId,
+      if (linkedBy != null) 'linkedBy': linkedBy,
     };
 
 void main() {
@@ -128,6 +136,52 @@ void main() {
       expect(output.content, contains('2100'));
       expect(output.content, contains('WDiv'));
       expect(output.content, contains('88'));
+    });
+
+    test('formats atUs, vsyncStartUs and the interaction link when present',
+        () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {}),
+        output: output,
+        response: {
+          'frames': [
+            _frame(
+              atUs: 123456,
+              vsyncStartUs: 100,
+              interactionId: 'tap-1',
+              linkedBy: 'zone',
+            ),
+          ],
+          'livenessCounter': 5,
+        },
+      );
+
+      final code = await TelescopeFramesCommand().handle(ctx);
+
+      expect(code, equals(0));
+      expect(output.content, contains('atUs=123456'));
+      expect(output.content, contains('vsyncStartUs=100'));
+      expect(output.content, contains('interactionId=tap-1'));
+      expect(output.content, contains('linkedBy=zone'));
+    });
+
+    test('omits the interaction link when interactionId is absent', () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {}),
+        output: output,
+        response: {
+          'frames': [_frame(atUs: 123456)],
+          'livenessCounter': 5,
+        },
+      );
+
+      final code = await TelescopeFramesCommand().handle(ctx);
+
+      expect(code, equals(0));
+      expect(output.content, isNot(contains('interactionId')));
+      expect(output.content, isNot(contains('linkedBy')));
     });
 
     test('a populated buffer prints one line per frame', () async {

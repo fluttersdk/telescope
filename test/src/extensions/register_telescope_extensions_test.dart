@@ -757,7 +757,7 @@ void main() {
           vsyncOverheadMicros: 10,
           totalSpanMicros: 310,
           time: DateTime(2026, 1, 1),
-          blocks: const <String, ({int micros, int count})>{},
+          blocks: const <String, ({int micros, int selfMicros, int count})>{},
         ),
       );
 
@@ -781,7 +781,7 @@ void main() {
             vsyncOverheadMicros: i,
             totalSpanMicros: i,
             time: DateTime(2026, 1, 1, i),
-            blocks: const <String, ({int micros, int count})>{},
+            blocks: const <String, ({int micros, int selfMicros, int count})>{},
           ),
         );
       }
