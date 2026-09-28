@@ -30,8 +30,10 @@ class EventRecord {
   /// interaction (a tap, a navigation), when the capturing site knows one.
   final String? interactionId;
 
-  /// How [interactionId] was derived: `zone` | `frame` | `window`. Null when
-  /// [interactionId] is null.
+  /// How [interactionId] was derived: `zone` | `frame` | `window`.
+  /// `window` means no interaction was open at capture: [interactionId] is
+  /// null and analysis joins the record by [atUs]. Null when the capturing
+  /// site does not link at all.
   final String? linkedBy;
 
   Map<String, dynamic> toJson() => {
