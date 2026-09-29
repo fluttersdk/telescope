@@ -142,7 +142,8 @@ Use this to debug API issues without instrumenting the app or watching network p
         "Authorization": "Bearer eyJ..."
       },
       "requestBody": null,
-      "responseBody": "{\"data\": [...]}"
+      "responseBody": "{\"data\": [...]}",
+      "atUs": 1234567
     }
   ]
 }
@@ -160,6 +161,12 @@ Use this to debug API issues without instrumenting the app or watching network p
 | `requestBody` | string | no | Request body as a string, when present and readable |
 | `responseBody` | string | no | Response body snippet, when present |
 | `attributedHeuristically` | boolean | no | True when the adapter used best-effort FIFO attribution for concurrent requests |
+| `requestId` | string | no | Adapter-assigned identifier pairing this response with its request exactly, when the adapter tracks one |
+| `startUs` | integer | no | Monotonic microsecond timestamp (`FlutterTimeline.now` clock) when the request was sent, when tracked |
+| `endUs` | integer | no | Monotonic microsecond timestamp (`FlutterTimeline.now` clock) when the response arrived, when tracked |
+| `atUs` | integer | yes | Monotonic microsecond timestamp from `FlutterTimeline.now`, captured at record construction |
+| `interactionId` | string | no | Correlates this record to others captured during the same logical interaction |
+| `linkedBy` | string | no | How `interactionId` was derived: `zone` \| `frame` \| `window` |
 
 ### Example Invocations
 
@@ -560,8 +567,10 @@ to attribute jank to a specific widget or layout phase after driving an interact
       "totalSpanMicros": 3800,
       "time": "2026-05-20T14:38:00.300Z",
       "blocks": {
-        "Widget.build": { "micros": 600, "count": 5 }
-      }
+        "Widget.build": { "micros": 600, "selfMicros": 400, "count": 5 }
+      },
+      "vsyncStartUs": 998200,
+      "atUs": 1234567
     }
   ],
   "livenessCounter": 128
@@ -577,7 +586,11 @@ to attribute jank to a specific widget or layout phase after driving an interact
 | `frames[].vsyncOverheadMicros` | integer | yes | Vsync overhead in microseconds |
 | `frames[].totalSpanMicros` | integer | yes | Total frame span in microseconds |
 | `frames[].time` | string | yes | ISO 8601 UTC timestamp |
-| `frames[].blocks` | object | yes | Named span to `{micros, count}`; empty when no measurement session is collecting |
+| `frames[].blocks` | object | yes | Named span to `{micros, selfMicros, count}`; empty when no measurement session is collecting. `micros` is inclusive of nested children, `selfMicros` is exclusive (`micros` minus directly nested children's combined duration) |
+| `frames[].vsyncStartUs` | integer | no | Vsync signal timestamp from `FrameTiming.timestampInMicroseconds(FramePhase.vsyncStart)`. Clock parity with `atUs` is NOT proven; treat a comparison as needing a live-engine run, not a unit-test guarantee |
+| `frames[].atUs` | integer | yes | Monotonic microsecond timestamp from `FlutterTimeline.now`, captured at record construction |
+| `frames[].interactionId` | string | no | Correlates this record to others captured during the same logical interaction |
+| `frames[].linkedBy` | string | no | How `interactionId` was derived: `zone` \| `frame` \| `window` |
 | `livenessCounter` | integer | yes | Monotonic count of frames actually drawn since `FramePerfWatcher` was installed; present even when `frames` is empty, so a caller can tell a quiet app from a stalled engine |
 
 ### Example Invocations

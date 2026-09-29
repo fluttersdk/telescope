@@ -38,11 +38,18 @@ class TelescopeFramesCommand extends ArtisanCommand {
       return 0;
     }
     for (final r in records) {
+      // Each half on its own: `linkedBy=window` is the case with no
+      // interactionId, so gating both on the id hid it.
+      final linkSuffix = [
+        if (r['interactionId'] != null) ' interactionId=${r['interactionId']}',
+        if (r['linkedBy'] != null) ' linkedBy=${r['linkedBy']}',
+      ].join();
       ctx.output.writeln(
-        '${r['time']} frame#${r['frameNumber']} '
+        '${r['time']} frame#${r['frameNumber']} atUs=${r['atUs']} '
+        'vsyncStartUs=${r['vsyncStartUs']} '
         'build=${r['buildMicros']}us raster=${r['rasterMicros']}us '
         'vsync=${r['vsyncOverheadMicros']}us total=${r['totalSpanMicros']}us '
-        'blocks=${r['blocks']}',
+        'blocks=${r['blocks']}$linkSuffix',
       );
     }
     ctx.output.writeln('livenessCounter=$livenessCounter');

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluttersdk_telescope/src/records/query_record.dart';
@@ -41,6 +42,7 @@ void main() {
         bindings: const <Object?>['Alice'],
         timeMs: 8,
         time: fixedTime,
+        atUs: 999,
       );
 
       expect(record.toJson(), <String, dynamic>{
@@ -49,7 +51,69 @@ void main() {
         'timeMs': 8,
         'connectionName': 'default',
         'time': '2026-05-19T03:00:00.000Z',
+        'atUs': 999,
       });
+    });
+
+    // -------------------------------------------------------------------------
+    // Clock, interaction link (shared shape across every telescope record)
+    // -------------------------------------------------------------------------
+
+    test('atUs defaults to FlutterTimeline.now captured at construction', () {
+      final int before = FlutterTimeline.now;
+      final record = QueryRecord(
+        sql: 'SELECT 1',
+        bindings: const <Object?>[],
+        timeMs: 1,
+        time: fixedTime,
+      );
+      final int after = FlutterTimeline.now;
+
+      expect(record.atUs, inInclusiveRange(before, after));
+    });
+
+    test('atUs accepts an explicit override', () {
+      final record = QueryRecord(
+        sql: 'SELECT 1',
+        bindings: const <Object?>[],
+        timeMs: 1,
+        time: fixedTime,
+        atUs: 555,
+      );
+
+      expect(record.atUs, equals(555));
+    });
+
+    test('interactionId and linkedBy default to null and toJson omits them',
+        () {
+      final record = QueryRecord(
+        sql: 'SELECT 1',
+        bindings: const <Object?>[],
+        timeMs: 1,
+        time: fixedTime,
+      );
+
+      expect(record.interactionId, isNull);
+      expect(record.linkedBy, isNull);
+
+      final json = record.toJson();
+      expect(json.containsKey('interactionId'), isFalse);
+      expect(json.containsKey('linkedBy'), isFalse);
+    });
+
+    test('interactionId and linkedBy are set and serialized when provided', () {
+      final record = QueryRecord(
+        sql: 'SELECT 1',
+        bindings: const <Object?>[],
+        timeMs: 1,
+        time: fixedTime,
+        interactionId: 'tap-1',
+        linkedBy: 'zone',
+      );
+
+      final json = record.toJson();
+      expect(json['interactionId'], equals('tap-1'));
+      expect(json['linkedBy'], equals('zone'));
     });
 
     test('JSON round-trip survives jsonEncode/jsonDecode', () {

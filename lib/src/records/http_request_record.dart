@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show FlutterTimeline;
+
 /// An immutable HTTP request/response record captured by a [TelescopeHttpAdapter].
 class HttpRequestRecord {
   HttpRequestRecord({
@@ -11,7 +13,13 @@ class HttpRequestRecord {
     this.requestBody,
     this.responseBody,
     this.attributedHeuristically = false,
-  });
+    this.requestId,
+    this.startUs,
+    this.endUs,
+    int? atUs,
+    this.interactionId,
+    this.linkedBy,
+  }) : atUs = atUs ?? FlutterTimeline.now;
 
   final String url;
   final String method;
@@ -27,6 +35,35 @@ class HttpRequestRecord {
   /// (concurrent requests in flight). The attribution is best-effort FIFO.
   final bool attributedHeuristically;
 
+  /// The adapter-assigned identifier that pairs this response with the
+  /// request that produced it, when the capturing adapter tracks one
+  /// (replacing best-effort FIFO attribution with an exact match).
+  final String? requestId;
+
+  /// Monotonic microsecond timestamp (from [FlutterTimeline.now]'s clock)
+  /// when the request was sent, when the capturing adapter tracks one.
+  final int? startUs;
+
+  /// Monotonic microsecond timestamp (from [FlutterTimeline.now]'s clock)
+  /// when the response arrived, when the capturing adapter tracks one.
+  final int? endUs;
+
+  /// Monotonic microsecond timestamp from `FlutterTimeline.now`, captured at
+  /// construction unless the caller supplies one explicitly. Comparable
+  /// across every telescope record type regardless of wall-clock skew;
+  /// [timestamp] stays the wall-clock field for display.
+  final int atUs;
+
+  /// Correlates this record to others captured during the same logical
+  /// interaction (a tap, a navigation), when the capturing site knows one.
+  final String? interactionId;
+
+  /// How [interactionId] was derived: `zone` | `frame` | `window`.
+  /// `window` means no interaction was open at capture: [interactionId] is
+  /// null and analysis joins the record by [atUs]. Null when the capturing
+  /// site does not link at all.
+  final String? linkedBy;
+
   Map<String, dynamic> toJson() => {
         'url': url,
         'method': method,
@@ -38,5 +75,11 @@ class HttpRequestRecord {
         if (requestBody != null) 'requestBody': requestBody,
         if (responseBody != null) 'responseBody': responseBody,
         if (attributedHeuristically) 'attributedHeuristically': true,
+        if (requestId != null) 'requestId': requestId,
+        if (startUs != null) 'startUs': startUs,
+        if (endUs != null) 'endUs': endUs,
+        'atUs': atUs,
+        if (interactionId != null) 'interactionId': interactionId,
+        if (linkedBy != null) 'linkedBy': linkedBy,
       };
 }
