@@ -808,19 +808,19 @@ void main() {
         );
       });
 
-      test('leaves a body that is not JSON untouched', () {
-        const String form = 'email=a%40b.test&password=hunter2';
+      test('masks a form body and leaves one it cannot read untouched', () {
         const String truncated = '{"password":"hunter2", "da... [truncated]';
 
         TelescopeStore.recordHttp(
           _httpWith(
-            requestBody: form,
+            requestBody: 'email=a%40b.test&password=hunter2',
             responseBody: truncated,
           ),
         );
 
         final HttpRequestRecord stored = TelescopeStore.recentHttp().single;
-        expect(stored.requestBody, equals(form));
+        expect(
+            stored.requestBody, equals('email=a%40b.test&password=********'));
         expect(stored.responseBody, equals(truncated));
       });
 

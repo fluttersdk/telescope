@@ -16,7 +16,7 @@ import 'records/http_request_record.dart';
 /// extended through the `hide*` methods (additions merge with the defaults,
 /// they never replace them), and every matching value replaced with [mask].
 ///
-/// The store only understands JSON bodies. An adapter that holds a body as
+/// The store only understands JSON and form-encoded bodies. An adapter that holds a body as
 /// structured data (a Dart `Map` whose `toString()` is not JSON) must run it
 /// through [redactParameters] before stringifying it.
 final class TelescopeRedaction {
@@ -61,11 +61,10 @@ final class TelescopeRedaction {
       _redact(data, keys.map(_normalize).toSet());
 
   /// Return [record] with its hidden request headers masked and the hidden
-  /// keys of a JSON request or response body masked.
+  /// keys of a JSON or form-encoded request or response body masked.
   ///
-  /// A body that is not a JSON object or array is kept as is, and so is a
-  /// JSON body with nothing to hide (byte for byte, so its formatting
-  /// survives). Returns [record] itself when nothing was masked. Never
+  /// Any other body is kept as is, and so is a body with nothing to hide
+  /// (byte for byte, so its formatting survives). Returns [record] itself when nothing was masked. Never
   /// throws on a malformed body.
   static HttpRequestRecord redactHttpRecord(HttpRequestRecord record) {
     final Map<String, String>? headers = _redactHeaders(record.requestHeaders);
@@ -152,6 +151,34 @@ final class TelescopeRedaction {
     );
   }
 
+  /// A whole `application/x-www-form-urlencoded` body: pairs joined by `&`,
+  /// no whitespace, and every percent escape well formed, so decoding a key
+  /// cannot throw.
+  static final RegExp _formBody = RegExp(
+    r'^(?:[^\s=&%]|%[0-9A-Fa-f]{2})+=(?:[^\s&%]|%[0-9A-Fa-f]{2})*'
+    r'(?:&(?:[^\s=&%]|%[0-9A-Fa-f]{2})+=(?:[^\s&%]|%[0-9A-Fa-f]{2})*)*$',
+  );
+
+  static String _redactForm(String body, Set<String> hidden) {
+    if (!_formBody.hasMatch(body)) return body;
+
+    bool masked = false;
+    final String redacted = body.split('&').map((String pair) {
+      final int equals = pair.indexOf('=');
+      // Latin-1 maps every byte, so a key that is not UTF-8 still decodes;
+      // the default names are ASCII either way.
+      final String key = Uri.decodeQueryComponent(
+        pair.substring(0, equals),
+        encoding: latin1,
+      );
+      if (!_hides(key, pair.substring(equals + 1), hidden)) return pair;
+      masked = true;
+      return '${pair.substring(0, equals + 1)}$mask';
+    }).join('&');
+
+    return masked ? redacted : body;
+  }
+
   static Map<String, String>? _redactHeaders(Map<String, String>? headers) {
     if (headers == null ||
         !headers.entries.any(
@@ -170,13 +197,15 @@ final class TelescopeRedaction {
   }
 
   /// Return [body] with the value under every key in [keys] masked, when
-  /// it parses as a JSON object or array.
+  /// it parses as a JSON object or array, or reads as a form-encoded body
+  /// (`key=value&key=value`, an OAuth token call or a form login).
   ///
-  /// Anything else (a form body, plain text, a truncated snippet) and a
-  /// JSON body with nothing to hide come back as given, byte for byte, so
-  /// the formatting survives. Never throws on a malformed body. Use it for
-  /// a body an adapter holds as a string, before truncating it: a cut body
-  /// no longer parses, so the store could not mask it afterwards.
+  /// Anything else (plain text, a truncated JSON snippet) and a body with
+  /// nothing to hide come back as given, byte for byte, so the formatting
+  /// survives; in a form body only the value of a matching pair changes.
+  /// Never throws on a malformed body. Use it for a body an adapter holds as
+  /// a string, before truncating it: a cut JSON body no longer parses, so
+  /// the store could not mask it afterwards.
   static String? redactBody(String? body, Set<String> keys) {
     if (body == null || body.isEmpty) return body;
     final Set<String> hidden = keys.map(_normalize).toSet();
@@ -185,9 +214,9 @@ final class TelescopeRedaction {
     try {
       decoded = jsonDecode(body);
     } on FormatException {
-      // Not JSON (a form body, plain text, a truncated payload): the store
-      // cannot find keys in it, so it is kept as the adapter handed it over.
-      return body;
+      // Not JSON: a form body is masked pair by pair, and anything else
+      // (plain text, a truncated payload) has no keys to find.
+      return _redactForm(body, hidden);
     }
 
     if (!_mentions(decoded, hidden)) return body;

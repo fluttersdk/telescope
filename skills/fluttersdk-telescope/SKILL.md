@@ -112,7 +112,8 @@ restart, and verify with `./bin/fsa telescope:tail`.
 8. **`********` is telescope's mask, not the app's value.** HTTP records
    are redacted before they are buffered: credential headers
    (`Authorization`, `Cookie`, `X-Api-Key`, ...) and credential keys of a
-   JSON body (`password`, `token`, `access_token`, ...) read `********`.
+   JSON or form-encoded body (`password`, `token`, `access_token`, ...)
+   read `********`.
    Do not report a masked header as "the app sent a bogus token"; a
    missing header is absent from `requestHeaders`, a masked one was sent.
    An empty credential (null, `false`, `''`, `[]`, `{}`) stays visible.

@@ -230,9 +230,10 @@ validation failure. A subtree nested deeper than 64 levels is masked whole, whic
 `recordHttp` from overflowing the stack on a pathological body. A bare list with no key (recovery
 codes returned directly under `data`, for example) has nothing to match and is not masked.
 
-The store only reads bodies that parse as a JSON object or array; anything else (a form body, plain
-text, a truncated snippet, a Dart `Map.toString()`) is buffered as the adapter handed it over. An
-adapter must therefore mask a body before it stringifies or truncates it:
+The store reads bodies that parse as a JSON object or array, and form-encoded bodies
+(`grant_type=password&password=...`), where only the value of a matching pair changes; anything else
+(plain text, a truncated JSON snippet, a Dart `Map.toString()`) is buffered as the adapter handed it
+over. An adapter must therefore mask a body before it stringifies or truncates it:
 
 ```dart
 // A body held as a Dart structure.
@@ -318,7 +319,7 @@ matching by call order.
 `TelescopeStore.pendingHttpCount` for Dusk's network-idle detection.
 
 The adapter masks request and response bodies before it truncates them
-(`TelescopeRedaction.redactParameters` for a Dart structure, `redactBody` for a JSON string), and
+(`TelescopeRedaction.redactParameters` for a Dart structure, `redactBody` for a JSON or form-encoded string), and
 `MagicTelescopeIntegration.install()` hides the header named by magic's `auth.token.header` config
 (default `Authorization`) in addition to the defaults. See
 [Credential redaction](#credential-redaction).

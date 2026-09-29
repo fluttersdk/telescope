@@ -205,15 +205,42 @@ void main() {
           'Password',
         };
         const String pretty = '{\n  "email": "a@b.test"\n}';
-        const String form = 'password=hunter2';
+        const String text = 'password is hunter2';
 
         expect(
           TelescopeRedaction.redactBody('{"password":"hunter2"}', keys),
           equals('{"password":"********"}'),
         );
         expect(TelescopeRedaction.redactBody(pretty, keys), same(pretty));
-        expect(TelescopeRedaction.redactBody(form, keys), same(form));
+        expect(TelescopeRedaction.redactBody(text, keys), same(text));
         expect(TelescopeRedaction.redactBody(null, keys), isNull);
+      });
+
+      test(
+          'masks a form-encoded body pair by pair, keeping every other pair '
+          'as given', () {
+        const Set<String> keys = <String>{'password', 'client_secret'};
+
+        // An OAuth password grant: the credential sits in a form body, not
+        // in JSON, and used to be buffered verbatim.
+        expect(
+          TelescopeRedaction.redactBody(
+            'grant_type=password&username=a%40b.test&PASSWORD=hunter%202'
+            '&client_secret=s3cr3t&scope=',
+            keys,
+          ),
+          equals(
+            'grant_type=password&username=a%40b.test&PASSWORD=********'
+            '&client_secret=********&scope=',
+          ),
+        );
+        // A percent-encoded key still matches; an empty value stays visible.
+        expect(
+          TelescopeRedaction.redactBody('pass%77ord=x&client_secret=', keys),
+          equals('pass%77ord=********&client_secret='),
+        );
+        const String untouched = 'username=a&remember=1';
+        expect(TelescopeRedaction.redactBody(untouched, keys), same(untouched));
       });
     });
 
