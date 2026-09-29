@@ -202,6 +202,33 @@ void main() {
       expect(output.content, isNot(contains('linkedBy')));
     });
 
+    test('prints linkedBy=window, which carries no interactionId', () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {}),
+        output: output,
+        response: {
+          'records': [
+            {
+              'timestamp': '2026-05-18T12:00:00.000Z',
+              'method': 'GET',
+              'url': 'https://api.example.com/users',
+              'statusCode': 200,
+              'durationMs': 142,
+              'atUs': 123456,
+              'linkedBy': 'window',
+            },
+          ],
+        },
+      );
+
+      final code = await TelescopeRequestsCommand().handle(ctx);
+
+      expect(code, equals(0));
+      expect(output.content, contains('linkedBy=window'));
+      expect(output.content, isNot(contains('interactionId')));
+    });
+
     test('handle returns 0 on success', () async {
       final output = BufferedOutput();
       final ctx = _StubContext(

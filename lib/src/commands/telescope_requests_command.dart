@@ -35,9 +35,12 @@ class TelescopeRequestsCommand extends ArtisanCommand {
       final r = m as Map<String, dynamic>;
       final requestIdSuffix =
           r['requestId'] != null ? ' requestId=${r['requestId']}' : '';
-      final linkSuffix = r['interactionId'] != null
-          ? ' interactionId=${r['interactionId']} linkedBy=${r['linkedBy']}'
-          : '';
+      // Each half on its own: `linkedBy=window` is the case with no
+      // interactionId, so gating both on the id hid it.
+      final linkSuffix = [
+        if (r['interactionId'] != null) ' interactionId=${r['interactionId']}',
+        if (r['linkedBy'] != null) ' linkedBy=${r['linkedBy']}',
+      ].join();
       ctx.output.writeln(
         '${r['timestamp']} ${r['method']} ${r['url']} → ${r['statusCode']} '
         '(${r['durationMs']}ms) atUs=${r['atUs']}$requestIdSuffix$linkSuffix',

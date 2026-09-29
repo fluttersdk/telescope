@@ -184,6 +184,24 @@ void main() {
       expect(output.content, isNot(contains('linkedBy')));
     });
 
+    test('prints linkedBy=window, which carries no interactionId', () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {}),
+        output: output,
+        response: {
+          'frames': [_frame(atUs: 123456, linkedBy: 'window')],
+          'livenessCounter': 5,
+        },
+      );
+
+      final code = await TelescopeFramesCommand().handle(ctx);
+
+      expect(code, equals(0));
+      expect(output.content, contains('linkedBy=window'));
+      expect(output.content, isNot(contains('interactionId')));
+    });
+
     test('a populated buffer prints one line per frame', () async {
       final output = BufferedOutput();
       final ctx = _StubContext(
