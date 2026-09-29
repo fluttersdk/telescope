@@ -36,9 +36,9 @@ Inside `telescope_requests` → `records[]`.
 | `durationMs` | integer | yes | Wall-clock duration in milliseconds. |
 | `isError` | boolean | yes | `true` for 4xx / 5xx or transport failures. |
 | `timestamp` | string (ISO 8601) | yes | Note: this field is `timestamp`, not `time`, on HTTP records only. |
-| `requestHeaders` | object (string → string) | opt | Often redacted by the adapter. |
-| `requestBody` | string | opt | Truncated snippet; not the full payload. |
-| `responseBody` | string | opt | Truncated snippet. |
+| `requestHeaders` | object (string → string) | opt | Credential headers (`Authorization`, `Cookie`, `X-Api-Key`, ...) read `********`: telescope's mask, not the app's value. |
+| `requestBody` | string | opt | Truncated snippet; not the full payload. Credential keys (`password`, `token`, ...) of a JSON or form-encoded body read `********`. |
+| `responseBody` | string | opt | Truncated snippet. Credential keys (`token`, `access_token`, ...) of a JSON or form-encoded body read `********`. |
 | `attributedHeuristically` | boolean | opt (omitted when false) | `true` when the adapter could not directly associate the call to the request and inferred it from timing. Treat the record as best-effort. |
 | `requestId` | string | opt | Id of the request that produced this record, when the adapter tracks one. It pairs a response to its request exactly, replacing FIFO attribution. |
 | `startUs` | integer | opt | `FlutterTimeline.now` when the request was sent, when the adapter tracks it. |

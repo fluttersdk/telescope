@@ -204,6 +204,54 @@ HTTP adapters implement `TelescopeHttpAdapter` (three methods: `name`, `install`
 the optional `pendingCount` getter). They feed `TelescopeStore.recordHttp` and their in-flight
 counts sum into `TelescopeStore.pendingHttpCount` (consumed by Dusk's `wait_for_network_idle`).
 
+### Credential redaction
+
+The HTTP buffer is served to AI agents over `ext.telescope.requests` and MCP, so
+`TelescopeStore.recordHttp` masks credentials before it buffers a record, and `onHttpRecord`
+subscribers receive the masked copy too. The model is Laravel Telescope's: three name lists,
+matched case-insensitively, each value under a matching name replaced with `********`.
+
+| List | Applies to | Defaults |
+|---|---|---|
+| Request headers | `requestHeaders` | `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-api-key` |
+| Request parameters | keys of a JSON `requestBody`, at any depth | `password`, `password_confirmation`, `current_password`, `new_password`, `token`, `access_token`, `refresh_token`, `secret`, `client_secret`, `authorization_code`, `id_token`, `two_factor_token`, `recovery_code` |
+| Response parameters | keys of a JSON `responseBody`, at any depth | `token`, `access_token`, `refresh_token`, `plain_text_token`, `secret`, `client_secret`, `id_token`, `two_factor_token`, `recovery_codes`, `qr_url`, `qr_svg` |
+
+Extend a list at install time; an addition merges with the defaults, it never replaces them:
+
+```dart
+TelescopeRedaction.hideRequestHeaders(['X-Auth']);
+TelescopeRedaction.hideRequestParameters(['pin']);
+TelescopeRedaction.hideResponseParameters(['recovery_codes']);
+```
+
+An empty value (null, `false`, `''`, `[]`, `{}`) stays visible: it is not a secret, and it explains a
+validation failure. A subtree nested deeper than 64 levels is masked whole, which keeps
+`recordHttp` from overflowing the stack on a pathological body. A bare list with no key (recovery
+codes returned directly under `data`, for example) has nothing to match and is not masked.
+
+The store reads bodies that parse as a JSON object or array, and form-encoded bodies
+(`grant_type=password&password=...`), where only the value of a matching pair changes and a bracketed
+key (`user[password]`, `codes[]`) matches on its last part; anything else
+(plain text, a truncated JSON snippet, a Dart `Map.toString()`) is buffered as the adapter handed it
+over. An adapter must therefore mask a body before it stringifies or truncates it:
+
+```dart
+// A body held as a Dart structure.
+final Object? safe = TelescopeRedaction.redactParameters(
+  data,
+  TelescopeRedaction.hiddenRequestParameters,
+);
+
+// A body held as a string, before it is cut to size.
+final String? safeText = TelescopeRedaction.redactBody(
+  text,
+  TelescopeRedaction.hiddenResponseParameters,
+);
+```
+
+Both return a masked copy and never mutate their input.
+
 ### DioHttpAdapter
 
 | Field | Value |
@@ -270,6 +318,12 @@ matching by call order.
 
 `pendingCount` returns the current length of the in-flight FIFO, surfaced into
 `TelescopeStore.pendingHttpCount` for Dusk's network-idle detection.
+
+The adapter masks request and response bodies before it truncates them
+(`TelescopeRedaction.redactParameters` for a Dart structure, `redactBody` for a JSON or form-encoded string), and
+`MagicTelescopeIntegration.install()` hides the header named by magic's `auth.token.header` config
+(default `Authorization`) in addition to the defaults. See
+[Credential redaction](#credential-redaction).
 
 Registration (via `MagicTelescopeIntegration`, the only documented entry point; ships in
 `magic_devtools` via `import 'package:magic_devtools/telescope.dart'`):

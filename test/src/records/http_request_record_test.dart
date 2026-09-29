@@ -272,5 +272,65 @@ void main() {
 
       expect(identical(a, b), isFalse);
     });
+
+    // -------------------------------------------------------------------------
+    // copyWith
+    // -------------------------------------------------------------------------
+
+    group('.copyWith()', () {
+      test('replaces the headers and bodies and keeps every other field', () {
+        final original = HttpRequestRecord(
+          url: 'https://api.uptizm.com/login',
+          method: 'POST',
+          statusCode: 200,
+          durationMs: 123,
+          isError: true,
+          timestamp: timestamp,
+          requestHeaders: {'Authorization': 'Bearer abc'},
+          requestBody: 'request',
+          responseBody: 'response',
+          attributedHeuristically: true,
+          requestId: 'r1',
+          startUs: 10,
+          endUs: 20,
+          atUs: 30,
+          interactionId: 'i1',
+          linkedBy: 'zone',
+        );
+
+        final copy = original.copyWith(
+          requestHeaders: {'Authorization': '********'},
+          requestBody: 'masked request',
+          responseBody: 'masked response',
+        );
+
+        expect(
+          copy.toJson(),
+          equals(
+            original.toJson()
+              ..['requestHeaders'] = {'Authorization': '********'}
+              ..['requestBody'] = 'masked request'
+              ..['responseBody'] = 'masked response',
+          ),
+        );
+      });
+
+      test('keeps the current values when called with no arguments', () {
+        final original = HttpRequestRecord(
+          url: 'https://api.uptizm.com/login',
+          method: 'POST',
+          statusCode: 200,
+          durationMs: 123,
+          isError: false,
+          timestamp: timestamp,
+          requestHeaders: {'Accept': 'application/json'},
+          requestBody: 'request',
+          responseBody: 'response',
+          atUs: 30,
+        );
+
+        expect(original.copyWith().toJson(), equals(original.toJson()));
+      });
+    });
   });
 }

@@ -139,7 +139,7 @@ Use this to debug API issues without instrumenting the app or watching network p
       "isError": false,
       "timestamp": "2026-05-20T14:32:11.456Z",
       "requestHeaders": {
-        "Authorization": "Bearer eyJ..."
+        "Authorization": "********"
       },
       "requestBody": null,
       "responseBody": "{\"data\": [...]}",
@@ -157,9 +157,9 @@ Use this to debug API issues without instrumenting the app or watching network p
 | `durationMs` | integer | yes | Round-trip time in milliseconds |
 | `isError` | boolean | yes | True when the adapter classified the call as failed |
 | `timestamp` | string | yes | ISO 8601 UTC timestamp of when the request was recorded |
-| `requestHeaders` | object | no | Request headers as a `Map<String, String>` |
-| `requestBody` | string | no | Request body as a string, when present and readable |
-| `responseBody` | string | no | Response body snippet, when present |
+| `requestHeaders` | object | no | Request headers as a `Map<String, String>`; credential headers read `********` (see Notes) |
+| `requestBody` | string | no | Request body as a string, when present and readable; credential keys of a JSON body read `********` |
+| `responseBody` | string | no | Response body snippet, when present; credential keys of a JSON body read `********` |
 | `attributedHeuristically` | boolean | no | True when the adapter used best-effort FIFO attribution for concurrent requests |
 | `requestId` | string | no | Adapter-assigned identifier pairing this response with its request exactly, when the adapter tracks one |
 | `startUs` | integer | no | Monotonic microsecond timestamp (`FlutterTimeline.now` clock) when the request was sent, when tracked |
@@ -184,6 +184,10 @@ telescope_requests
   `dart:io HttpClient` calls are invisible to this tool.
 - Pair with `telescope_clear` before a user action to isolate exactly the traffic that action
   produces.
+- Credentials are masked before a record is buffered, the way Laravel Telescope does it: the
+  value of a hidden header or a hidden JSON body key reads `********`, which is telescope's mask
+  and not what the app sent. See [Credential redaction](../watchers/index.md#credential-redaction)
+  for the default lists and how to extend them.
 
 ---
 

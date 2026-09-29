@@ -109,6 +109,15 @@ restart, and verify with `./bin/fsa telescope:tail`.
      A swallowed `try / catch` is invisible; pair with `telescope_tail`
      to catch the breadcrumb the swallower logged.
 
+8. **`********` is telescope's mask, not the app's value.** HTTP records
+   are redacted before they are buffered: credential headers
+   (`Authorization`, `Cookie`, `X-Api-Key`, ...) and credential keys of a
+   JSON or form-encoded body (`password`, `token`, `access_token`, ...)
+   read `********`.
+   Do not report a masked header as "the app sent a bogus token"; a
+   missing header is absent from `requestHeaders`, a masked one was sent.
+   An empty credential (null, `false`, `''`, `[]`, `{}`) stays visible.
+
 ## 2. Tool surface (10 MCP tools, 10 CLI commands)
 
 | Family | MCP tool | CLI command | Captures |

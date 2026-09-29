@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluttersdk_telescope/src/adapters/http_adapter.dart';
@@ -10,6 +12,7 @@ import 'package:fluttersdk_telescope/src/records/http_request_record.dart';
 import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
 import 'package:fluttersdk_telescope/src/records/magic_cache_record.dart';
 import 'package:fluttersdk_telescope/src/records/magic_model_record.dart';
+import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 import 'package:fluttersdk_telescope/src/telescope_store.dart';
 
 void main() {
@@ -699,7 +702,262 @@ void main() {
       expect(TelescopeStore.pendingHttpCount, equals(0));
     });
   });
+
+  group('TelescopeStore', () {
+    group('recordHttp() redaction', () {
+      test(
+          'masks a hidden request header whatever its case, and keeps the '
+          'rest', () {
+        TelescopeStore.recordHttp(
+          _httpWith(
+            requestHeaders: <String, String>{
+              'Authorization': 'Bearer abc',
+              'COOKIE': 'session=xyz',
+              'Accept': 'application/json',
+            },
+          ),
+        );
+
+        final HttpRequestRecord stored = TelescopeStore.recentHttp().single;
+        expect(
+          stored.requestHeaders,
+          equals(<String, String>{
+            'Authorization': '********',
+            'COOKIE': '********',
+            'Accept': 'application/json',
+          }),
+        );
+        expect(stored.toJson().toString(), isNot(contains('abc')));
+      });
+
+      test('masks hidden parameters in a JSON request body', () {
+        TelescopeStore.recordHttp(
+          _httpWith(
+            requestBody: '{"email":"a@b.test","password":"hunter2"}',
+          ),
+        );
+
+        final HttpRequestRecord stored = TelescopeStore.recentHttp().single;
+        expect(
+          jsonDecode(stored.requestBody!),
+          equals(<String, dynamic>{
+            'email': 'a@b.test',
+            'password': '********',
+          }),
+        );
+      });
+
+      test('masks hidden parameters nested in a JSON response body', () {
+        TelescopeStore.recordHttp(
+          _httpWith(
+            responseBody: '{"data":{"token":"abc","user":{"id":1}}}',
+          ),
+        );
+
+        final HttpRequestRecord stored = TelescopeStore.recentHttp().single;
+        expect(
+          jsonDecode(stored.responseBody!),
+          equals(<String, dynamic>{
+            'data': <String, dynamic>{
+              'token': '********',
+              'user': <String, dynamic>{
+                'id': 1,
+              },
+            },
+          }),
+        );
+      });
+
+      test(
+          'reads the response body against the response list, not the '
+          'request list', () {
+        TelescopeRedaction.hideRequestParameters(<String>[
+          'pin',
+        ]);
+
+        TelescopeStore.recordHttp(
+          _httpWith(
+            requestBody: '{"pin":"1234"}',
+            responseBody: '{"pin":"1234"}',
+          ),
+        );
+
+        final HttpRequestRecord stored = TelescopeStore.recentHttp().single;
+        expect(stored.requestBody, equals('{"pin":"********"}'));
+        expect(stored.responseBody, equals('{"pin":"1234"}'));
+      });
+
+      test('honours a header added through hideRequestHeaders()', () {
+        TelescopeRedaction.hideRequestHeaders(<String>[
+          'X-Auth',
+        ]);
+
+        TelescopeStore.recordHttp(
+          _httpWith(
+            requestHeaders: <String, String>{
+              'x-auth': 'Bearer abc',
+            },
+          ),
+        );
+
+        expect(
+          TelescopeStore.recentHttp().single.requestHeaders,
+          equals(<String, String>{
+            'x-auth': '********',
+          }),
+        );
+      });
+
+      test('masks a form body and leaves one it cannot read untouched', () {
+        const String truncated = '{"password":"hunter2", "da... [truncated]';
+
+        TelescopeStore.recordHttp(
+          _httpWith(
+            requestBody: 'email=a%40b.test&password=hunter2',
+            responseBody: truncated,
+          ),
+        );
+
+        final HttpRequestRecord stored = TelescopeStore.recentHttp().single;
+        expect(
+            stored.requestBody, equals('email=a%40b.test&password=********'));
+        expect(stored.responseBody, equals(truncated));
+      });
+
+      test('masks hidden parameters inside a top-level JSON array body', () {
+        TelescopeStore.recordHttp(
+          _httpWith(
+            responseBody: '[{"name":"ci","token":"abc"}]',
+          ),
+        );
+
+        expect(
+          TelescopeStore.recentHttp().single.responseBody,
+          equals('[{"name":"ci","token":"********"}]'),
+        );
+      });
+
+      test(
+          'masks the two-factor setup answer, the secret inside the QR url '
+          'included', () {
+        TelescopeStore.recordHttp(
+          _httpWith(
+            responseBody: jsonEncode(<String, dynamic>{
+              'data': <String, dynamic>{
+                'secret': 'JBSWY3DP',
+                'qr_url': 'otpauth://totp/app?secret=JBSWY3DP',
+                'qr_svg': '<svg>JBSWY3DP</svg>',
+                'recovery_codes': <String>[
+                  'r1-r1',
+                ],
+              },
+            }),
+          ),
+        );
+
+        final String stored = TelescopeStore.recentHttp().single.responseBody!;
+        expect(stored, isNot(contains('JBSWY3DP')));
+        expect(stored, isNot(contains('r1-r1')));
+      });
+
+      test('never throws on a JSON body nested past the depth it walks', () {
+        final String deep = '${'[' * 20000}{"token":"deep"}${']' * 20000}';
+
+        TelescopeStore.recordHttp(
+          _httpWith(
+            responseBody: deep,
+          ),
+        );
+
+        expect(
+          TelescopeStore.recentHttp().single.responseBody,
+          isNot(contains('"deep"')),
+        );
+      });
+
+      test('keeps a JSON body byte for byte when it holds no hidden key', () {
+        const String pretty = '{\n  "email": "a@b.test"\n}';
+
+        TelescopeStore.recordHttp(
+          _httpWith(
+            requestBody: pretty,
+            responseBody: '"token"',
+          ),
+        );
+
+        final HttpRequestRecord stored = TelescopeStore.recentHttp().single;
+        expect(stored.requestBody, equals(pretty));
+        expect(stored.responseBody, equals('"token"'));
+      });
+
+      test('keeps every other field of the record', () {
+        final HttpRequestRecord original = HttpRequestRecord(
+          url: 'https://example.test/login',
+          method: 'POST',
+          statusCode: 200,
+          durationMs: 42,
+          isError: false,
+          timestamp: DateTime(2026, 1, 1),
+          requestHeaders: <String, String>{
+            'Authorization': 'Bearer abc',
+          },
+          attributedHeuristically: true,
+          requestId: 'r1',
+          startUs: 10,
+          endUs: 20,
+          atUs: 30,
+          interactionId: 'i1',
+          linkedBy: 'zone',
+        );
+
+        TelescopeStore.recordHttp(original);
+
+        final Map<String, dynamic> stored =
+            TelescopeStore.recentHttp().single.toJson();
+        final Map<String, dynamic> expected = original.toJson()
+          ..['requestHeaders'] = <String, String>{
+            'Authorization': '********',
+          };
+        expect(stored, equals(expected));
+      });
+
+      test('emits the masked record to onHttpRecord subscribers', () async {
+        final Future<HttpRequestRecord> emitted =
+            TelescopeStore.onHttpRecord.first;
+
+        TelescopeStore.recordHttp(
+          _httpWith(
+            requestHeaders: <String, String>{
+              'Authorization': 'Bearer abc',
+            },
+            responseBody: '{"token":"abc"}',
+          ),
+        );
+
+        final HttpRequestRecord record = await emitted;
+        expect(record.requestHeaders!['Authorization'], equals('********'));
+        expect(record.responseBody, equals('{"token":"********"}'));
+      });
+    });
+  });
 }
+
+HttpRequestRecord _httpWith({
+  Map<String, String>? requestHeaders,
+  String? requestBody,
+  String? responseBody,
+}) =>
+    HttpRequestRecord(
+      method: 'POST',
+      url: 'https://example.test/login',
+      statusCode: 200,
+      durationMs: 1,
+      isError: false,
+      timestamp: DateTime(2026, 1, 1),
+      requestHeaders: requestHeaders,
+      requestBody: requestBody,
+      responseBody: responseBody,
+    );
 
 // ---------------------------------------------------------------------------
 // Record fixture helpers (keep tests terse; each helper carries a unique

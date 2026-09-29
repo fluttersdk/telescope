@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:meta/meta.dart';
 
 import 'internal/http_adapter_registry.dart';
+import 'internal/redaction_lists.dart';
 import 'records/dump_record.dart';
 import 'records/event_record.dart';
 import 'records/exception_record.dart';
@@ -14,6 +15,7 @@ import 'records/log_record_entry.dart';
 import 'records/magic_cache_record.dart';
 import 'records/magic_model_record.dart';
 import 'records/query_record.dart';
+import 'telescope_redaction.dart';
 
 /// In-memory ring-buffer store for the 9 V1+alpha-2 watcher record types
 /// plus the frame-perf buffer.
@@ -106,13 +108,17 @@ class TelescopeStore {
   /// history a developer may also be reading, which [clear] would do.
   static void clearFramePerf() => _framePerf.clear();
 
+  /// Buffer [r] with its credentials masked by [TelescopeRedaction], and
+  /// emit the masked copy on [onHttpRecord]. Never throws on a malformed
+  /// body: one that is not JSON is buffered as given.
   static void recordHttp(HttpRequestRecord r) {
     if (_paused) return;
-    _http.addLast(r);
+    final HttpRequestRecord redacted = TelescopeRedaction.redactHttpRecord(r);
+    _http.addLast(redacted);
     while (_http.length > _cap) {
       _http.removeFirst();
     }
-    _httpStream.add(r);
+    _httpStream.add(redacted);
   }
 
   static void recordLog(LogRecordEntry r) {
@@ -285,5 +291,8 @@ class TelescopeStore {
     // `internal/http_adapter_registry.dart`; clearing it here keeps test
     // isolation aligned with the existing buffer reset.
     httpAdapterRegistry.clear();
+    // The hidden-name lists are process-wide too; a test that extends them
+    // must not leak its additions into the next.
+    resetRedactionLists();
   }
 }
