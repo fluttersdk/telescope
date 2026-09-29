@@ -64,6 +64,32 @@ class HttpRequestRecord {
   /// site does not link at all.
   final String? linkedBy;
 
+  /// Copy with the capture payload replaced; every other field, [atUs]
+  /// included, carries over so the copy keeps its place on the trace.
+  HttpRequestRecord copyWith({
+    Map<String, String>? requestHeaders,
+    String? requestBody,
+    String? responseBody,
+  }) =>
+      HttpRequestRecord(
+        url: url,
+        method: method,
+        statusCode: statusCode,
+        durationMs: durationMs,
+        isError: isError,
+        timestamp: timestamp,
+        requestHeaders: requestHeaders ?? this.requestHeaders,
+        requestBody: requestBody ?? this.requestBody,
+        responseBody: responseBody ?? this.responseBody,
+        attributedHeuristically: attributedHeuristically,
+        requestId: requestId,
+        startUs: startUs,
+        endUs: endUs,
+        atUs: atUs,
+        interactionId: interactionId,
+        linkedBy: linkedBy,
+      );
+
   Map<String, dynamic> toJson() => {
         'url': url,
         'method': method,

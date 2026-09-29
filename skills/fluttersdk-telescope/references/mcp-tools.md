@@ -53,7 +53,7 @@ Outbound HTTP records captured by the registered `TelescopeHttpAdapter`.
       "durationMs": 184,
       "isError": false,
       "timestamp": "2026-05-25T09:14:22.318Z",
-      "requestHeaders": { "Authorization": "Bearer ..." },
+      "requestHeaders": { "Authorization": "********" },
       "responseBody": "{\"data\":[...]}"
     }
   ]

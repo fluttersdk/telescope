@@ -54,6 +54,7 @@ After install, the consumer gets the artisan fast-cli at `./bin/fsa` (native AOT
 | 📋 | **10 Record Types** | Immutable: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord`, `FramePerfRecord` |
 | 📡 | **VM Service Extensions** | 12 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.frames`, `.clear`, `.pause`, `.resume` |
 | ✨ | **Magic Integration** | `MagicTelescopeIntegration.install()` wires Http facade adapter + model/cache/event/gate watchers in one call (ships in the `magic_devtools` dev_dependency) |
+| 🙈 | **Credential Redaction** | HTTP records are masked before they are buffered (Laravel Telescope's model): `Authorization`, `Cookie`, `X-Api-Key` headers and `password` / `token` style JSON keys read `********`; extend the lists with `TelescopeRedaction.hide*` |
 | 🔒 | **Debug-only Gate** | Consumer wraps install inside `if (kDebugMode)`; release builds tree-shake the entire telescope branch on all platforms |
 | 🔄 | **Idempotent Install** | Every `registerExtension` call routes through `registerExtensionIdempotent`; hot-restart safe, no `ArgumentError` on re-registration |
 
