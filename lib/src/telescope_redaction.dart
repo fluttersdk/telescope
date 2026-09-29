@@ -167,9 +167,8 @@ final class TelescopeRedaction {
       final int equals = pair.indexOf('=');
       // Latin-1 maps every byte, so a key that is not UTF-8 still decodes;
       // the default names are ASCII either way.
-      final String key = Uri.decodeQueryComponent(
-        pair.substring(0, equals),
-        encoding: latin1,
+      final String key = _formLeaf(
+        Uri.decodeQueryComponent(pair.substring(0, equals), encoding: latin1),
       );
       if (!_hides(key, pair.substring(equals + 1), hidden)) return pair;
       masked = true;
@@ -177,6 +176,18 @@ final class TelescopeRedaction {
     }).join('&');
 
     return masked ? redacted : body;
+  }
+
+  /// The name a form key addresses, the leaf a nested JSON key would be:
+  /// `user[password]` is `password`, and a list key `codes[]` is `codes`.
+  static String _formLeaf(String key) {
+    String name = key;
+    while (name.endsWith('[]')) {
+      name = name.substring(0, name.length - 2);
+    }
+    final int open = name.lastIndexOf('[');
+    if (!name.endsWith(']') || open < 0) return name;
+    return name.substring(open + 1, name.length - 1);
   }
 
   static Map<String, String>? _redactHeaders(Map<String, String>? headers) {

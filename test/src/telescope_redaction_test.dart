@@ -239,6 +239,19 @@ void main() {
           TelescopeRedaction.redactBody('pass%77ord=x&client_secret=', keys),
           equals('pass%77ord=********&client_secret='),
         );
+        // A bracketed key addresses its last part, as a nested JSON key is
+        // masked at any depth; a list key `codes[]` addresses `codes`.
+        expect(
+          TelescopeRedaction.redactBody(
+            'user[password]=hunter2&user%5Bemail%5D=a&client_secret[]=x'
+            '&user%5Bclient_secret%5D=y',
+            keys,
+          ),
+          equals(
+            'user[password]=********&user%5Bemail%5D=a&client_secret[]=********'
+            '&user%5Bclient_secret%5D=********',
+          ),
+        );
         const String untouched = 'username=a&remember=1';
         expect(TelescopeRedaction.redactBody(untouched, keys), same(untouched));
       });

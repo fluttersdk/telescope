@@ -231,7 +231,8 @@ validation failure. A subtree nested deeper than 64 levels is masked whole, whic
 codes returned directly under `data`, for example) has nothing to match and is not masked.
 
 The store reads bodies that parse as a JSON object or array, and form-encoded bodies
-(`grant_type=password&password=...`), where only the value of a matching pair changes; anything else
+(`grant_type=password&password=...`), where only the value of a matching pair changes and a bracketed
+key (`user[password]`, `codes[]`) matches on its last part; anything else
 (plain text, a truncated JSON snippet, a Dart `Map.toString()`) is buffered as the adapter handed it
 over. An adapter must therefore mask a body before it stringifies or truncates it:
 
