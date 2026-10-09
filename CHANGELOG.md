@@ -10,6 +10,15 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ---
 
+## [0.0.10] - 2026-10-09
+
+### Changed
+
+- **The artisan floor names this batch's release.** `fluttersdk_artisan` moves `^0.0.17` to `^0.0.19`. The old range already admitted 0.0.19, so a fresh `pub get` resolves nothing differently; what changes is that the floor names the release this package is verified against. Neither artisan 0.0.18 nor 0.0.19 is breaking: 0.0.18 adds installer operations telescope does not use, and 0.0.19 widens artisan's `xml` constraint to admit 7.x, which a consumer now inherits. (`pubspec.yaml`, `doc/getting-started/`, `CLAUDE.md`, `.github/copilot-instructions.md`)
+- **The example app moves `cupertino_icons` to `^2.0.0`.** It touches only the unpublished `example/` app, not the package. (#41, `example/pubspec.yaml`, `example/pubspec.lock`)
+
+---
+
 ## [0.0.9] - 2026-09-29
 
 ### Added
