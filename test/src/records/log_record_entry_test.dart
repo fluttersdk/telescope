@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 
 import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
 
@@ -56,6 +58,7 @@ void main() {
         message: 'Monitor checked successfully',
         loggerName: 'telescope',
         time: time,
+        atUs: 999,
       );
 
       expect(
@@ -66,8 +69,69 @@ void main() {
           'message': 'Monitor checked successfully',
           'loggerName': 'telescope',
           'time': time.toIso8601String(),
+          'atUs': 999,
+          'redacted': false,
         }),
       );
+    });
+
+    test('atUs defaults to FlutterTimeline.now captured at construction', () {
+      final int before = FlutterTimeline.now;
+      final record = LogRecordEntry(
+        level: 'INFO',
+        levelValue: 800,
+        message: 'm',
+        loggerName: 'telescope',
+        time: time,
+      );
+      final int after = FlutterTimeline.now;
+
+      expect(record.atUs, inInclusiveRange(before, after));
+    });
+
+    test('atUs accepts an explicit override', () {
+      final record = LogRecordEntry(
+        level: 'INFO',
+        levelValue: 800,
+        message: 'm',
+        loggerName: 'telescope',
+        time: time,
+        atUs: 555,
+      );
+
+      expect(record.atUs, equals(555));
+    });
+
+    test('fromLogRecord stamps atUs from the monotonic clock', () {
+      final int before = FlutterTimeline.now;
+      final record = LogRecordEntry.fromLogRecord(
+        LogRecord(Level.INFO, 'm', 'telescope'),
+      );
+      final int after = FlutterTimeline.now;
+
+      expect(record.atUs, inInclusiveRange(before, after));
+    });
+
+    test('redacted defaults to false and serializes when true', () {
+      final plain = LogRecordEntry(
+        level: 'INFO',
+        levelValue: 800,
+        message: 'm',
+        loggerName: 'telescope',
+        time: time,
+      );
+      final masked = LogRecordEntry(
+        level: 'INFO',
+        levelValue: 800,
+        message: 'm',
+        loggerName: 'telescope',
+        time: time,
+        redacted: true,
+      );
+
+      expect(plain.redacted, isFalse);
+      expect(masked.redacted, isTrue);
+      expect(masked.toJson()['redacted'], isTrue);
     });
 
     test('toJson includes error and stackTrace when set', () {

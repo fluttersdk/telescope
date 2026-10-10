@@ -56,8 +56,27 @@ void main() {
           'exceptionType': 'StateError',
           'message': 'Bad state: no element',
           'time': time.toIso8601String(),
+          'redacted': false,
         }),
       );
+    });
+
+    test('redacted defaults to false and serializes when true', () {
+      final plain = ExceptionRecord(
+        exceptionType: 'StateError',
+        message: 'm',
+        time: time,
+      );
+      final masked = ExceptionRecord(
+        exceptionType: 'StateError',
+        message: 'm',
+        time: time,
+        redacted: true,
+      );
+
+      expect(plain.redacted, isFalse);
+      expect(masked.redacted, isTrue);
+      expect(masked.toJson()['redacted'], isTrue);
     });
 
     test('toJson includes stackTrace and isolate when set', () {

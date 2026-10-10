@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:meta/meta.dart';
 
 import 'internal/redaction_lists.dart' as lists;
+import 'records/event_record.dart';
+import 'records/exception_record.dart';
 import 'records/http_request_record.dart';
+import 'records/log_record_entry.dart';
 
 /// Masks credentials in HTTP records before [TelescopeStore.recordHttp]
 /// buffers them.
@@ -24,6 +27,19 @@ final class TelescopeRedaction {
 
   /// The value a hidden entry is replaced with; Laravel Telescope's mask.
   static const String mask = '********';
+
+  /// The host's text redactor, or null while none is registered.
+  ///
+  /// When set, the store runs it over every text the log, event, exception
+  /// and HTTP records carry (message, error, stack, URL, header values,
+  /// bodies and every String inside an event payload's nested Maps and
+  /// Lists) before the record enters its queue or its stream, and marks the
+  /// record `redacted`. It receives one String and returns the masked one;
+  /// it must be pure and total, since a throw drops the record rather than
+  /// let it through unmasked. A record buffered while this is null stays
+  /// unredacted, and a consumer that persists records writes only the
+  /// redacted ones.
+  static String Function(String)? redactor;
 
   /// Lowercased request header names whose values are masked.
   static Set<String> get hiddenRequestHeaders =>
@@ -61,12 +77,146 @@ final class TelescopeRedaction {
       _redact(data, keys.map(_normalize).toSet());
 
   /// Return [record] with its hidden request headers masked and the hidden
-  /// keys of a JSON or form-encoded request or response body masked.
+  /// keys of a JSON or form-encoded request or response body masked, then,
+  /// when a [redactor] is registered, every text field run through it.
   ///
   /// Any other body is kept as is, and so is a body with nothing to hide
-  /// (byte for byte, so its formatting survives). Returns [record] itself when nothing was masked. Never
-  /// throws on a malformed body.
+  /// (byte for byte, so its formatting survives). Returns [record] itself
+  /// when nothing was masked and no [redactor] is registered. Never throws on
+  /// a malformed body.
   static HttpRequestRecord redactHttpRecord(HttpRequestRecord record) {
+    final HttpRequestRecord keyed = _redactHttpKeys(record);
+    final String Function(String)? redact = redactor;
+    if (redact == null) return keyed;
+
+    return HttpRequestRecord(
+      url: redact(keyed.url),
+      method: redact(keyed.method),
+      statusCode: keyed.statusCode,
+      durationMs: keyed.durationMs,
+      isError: keyed.isError,
+      timestamp: keyed.timestamp,
+      requestHeaders: keyed.requestHeaders?.map(
+        (String name, String value) =>
+            MapEntry<String, String>(name, redact(value)),
+      ),
+      requestBody: _text(keyed.requestBody, redact),
+      responseBody: _text(keyed.responseBody, redact),
+      attributedHeuristically: keyed.attributedHeuristically,
+      requestId: _text(keyed.requestId, redact),
+      startUs: keyed.startUs,
+      endUs: keyed.endUs,
+      atUs: keyed.atUs,
+      interactionId: _text(keyed.interactionId, redact),
+      linkedBy: _text(keyed.linkedBy, redact),
+      redacted: true,
+    );
+  }
+
+  /// Return [record] with every text field run through the [redactor] and
+  /// `redacted` set, or [record] itself when none is registered.
+  static LogRecordEntry redactLogRecord(LogRecordEntry record) {
+    final String Function(String)? redact = redactor;
+    if (redact == null) return record;
+
+    return LogRecordEntry(
+      level: redact(record.level),
+      levelValue: record.levelValue,
+      message: redact(record.message),
+      loggerName: redact(record.loggerName),
+      time: record.time,
+      error: _text(record.error, redact),
+      stackTrace: _text(record.stackTrace, redact),
+      atUs: record.atUs,
+      redacted: true,
+    );
+  }
+
+  /// Return [record] with every text field run through the [redactor] and
+  /// `redacted` set, or [record] itself when none is registered.
+  static ExceptionRecord redactExceptionRecord(ExceptionRecord record) {
+    final String Function(String)? redact = redactor;
+    if (redact == null) return record;
+
+    return ExceptionRecord(
+      exceptionType: redact(record.exceptionType),
+      message: redact(record.message),
+      time: record.time,
+      stackTrace: _text(record.stackTrace, redact),
+      isolate: _text(record.isolate, redact),
+      redacted: true,
+    );
+  }
+
+  /// Return [record] with a JSON-safe payload, and with every text field run
+  /// through the [redactor] and `redacted` set when one is registered.
+  ///
+  /// The payload is walked at any depth of Maps and Lists. A value `jsonEncode`
+  /// cannot write (a `DateTime`, a `Duration`, any object) is stored as its
+  /// `toString()` and a non-String map key as its `toString()`, so one bad
+  /// payload cannot fail a whole events response. A subtree nested past 64
+  /// levels is masked whole. Returns [record] itself when there is nothing to
+  /// change.
+  static EventRecord redactEventRecord(EventRecord record) {
+    final String Function(String)? redact = redactor;
+    final Map<String, dynamic> payload =
+        _scrub(record.payload, redact) as Map<String, dynamic>;
+    if (redact == null && identical(payload, record.payload)) return record;
+
+    return EventRecord(
+      eventType: _text(record.eventType, redact)!,
+      payload: payload,
+      time: record.time,
+      listenerCount: record.listenerCount,
+      atUs: record.atUs,
+      interactionId: _text(record.interactionId, redact),
+      linkedBy: _text(record.linkedBy, redact),
+      redacted: redact != null || record.redacted,
+    );
+  }
+
+  static String? _text(String? text, String Function(String)? redact) =>
+      text == null || redact == null ? text : redact(text);
+
+  /// A String is run through [redactor] when one is given; a scalar stays;
+  /// a Map or List is rebuilt only when something inside it changed, so an
+  /// already-safe payload keeps its identity; anything else becomes its
+  /// `toString()`.
+  static Object? _scrub(
+    Object? value,
+    String Function(String)? redact, [
+    int depth = 0,
+  ]) {
+    if (value == null || value is bool || value is num) return value;
+    if (depth >= _maxDepth) return mask;
+    if (value is String) return _text(value, redact);
+
+    if (value is Map) {
+      bool changed = value is! Map<String, dynamic>;
+      final Map<String, dynamic> scrubbed = <String, dynamic>{};
+      for (final MapEntry<Object?, Object?> entry in value.entries) {
+        final Object? item = _scrub(entry.value, redact, depth + 1);
+        changed = changed || !identical(item, entry.value);
+        scrubbed['${entry.key}'] = item;
+      }
+      return changed ? scrubbed : value;
+    }
+
+    if (value is List) {
+      bool changed = false;
+      final List<Object?> scrubbed = <Object?>[];
+      for (final Object? element in value) {
+        final Object? item = _scrub(element, redact, depth + 1);
+        changed = changed || !identical(item, element);
+        scrubbed.add(item);
+      }
+      return changed ? scrubbed : value;
+    }
+
+    return _text(value.toString(), redact);
+  }
+
+  static HttpRequestRecord _redactHttpKeys(HttpRequestRecord record) {
     final Map<String, String>? headers = _redactHeaders(record.requestHeaders);
     final String? requestBody = redactBody(
       record.requestBody,
@@ -90,9 +240,12 @@ final class TelescopeRedaction {
     );
   }
 
-  /// Restore the three lists to their defaults.
+  /// Restore the three lists to their defaults and unregister the [redactor].
   @visibleForTesting
-  static void resetForTesting() => lists.resetRedactionLists();
+  static void resetForTesting() {
+    lists.resetRedactionLists();
+    redactor = null;
+  }
 
   static String _normalize(String name) => name.toLowerCase();
 

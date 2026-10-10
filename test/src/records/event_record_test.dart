@@ -54,7 +54,26 @@ void main() {
             'payload': {'userId': '42'},
             'time': time.toIso8601String(),
             'atUs': 999,
+            'redacted': false,
           }));
+    });
+
+    test('redacted defaults to false and serializes when true', () {
+      final plain = EventRecord(
+        eventType: 'UserLoggedIn',
+        payload: {},
+        time: time,
+      );
+      final masked = EventRecord(
+        eventType: 'UserLoggedIn',
+        payload: {},
+        time: time,
+        redacted: true,
+      );
+
+      expect(plain.redacted, isFalse);
+      expect(masked.redacted, isTrue);
+      expect(masked.toJson()['redacted'], isTrue);
     });
 
     test('toJson includes listenerCount when set', () {

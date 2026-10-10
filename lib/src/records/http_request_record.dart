@@ -19,6 +19,7 @@ class HttpRequestRecord {
     int? atUs,
     this.interactionId,
     this.linkedBy,
+    this.redacted = false,
   }) : atUs = atUs ?? FlutterTimeline.now;
 
   final String url;
@@ -64,8 +65,15 @@ class HttpRequestRecord {
   /// site does not link at all.
   final String? linkedBy;
 
+  /// True when [TelescopeRedaction.redactor] ran over this record before it
+  /// was buffered. A record made while no redactor was registered is false,
+  /// and a consumer that persists records (a file sink) writes only the true
+  /// ones.
+  final bool redacted;
+
   /// Copy with the capture payload replaced; every other field, [atUs]
-  /// included, carries over so the copy keeps its place on the trace.
+  /// included, carries over so the copy keeps its place on the trace. The
+  /// copy keeps [redacted] too: masking a body does not mean a redactor ran.
   HttpRequestRecord copyWith({
     Map<String, String>? requestHeaders,
     String? requestBody,
@@ -88,6 +96,7 @@ class HttpRequestRecord {
         atUs: atUs,
         interactionId: interactionId,
         linkedBy: linkedBy,
+        redacted: redacted,
       );
 
   Map<String, dynamic> toJson() => {
@@ -107,5 +116,6 @@ class HttpRequestRecord {
         'atUs': atUs,
         if (interactionId != null) 'interactionId': interactionId,
         if (linkedBy != null) 'linkedBy': linkedBy,
+        'redacted': redacted,
       };
 }

@@ -7,11 +7,13 @@ import 'package:fluttersdk_telescope/src/internal/http_adapter_registry.dart';
 import 'package:fluttersdk_telescope/src/records/dump_record.dart';
 import 'package:fluttersdk_telescope/src/records/event_record.dart';
 import 'package:fluttersdk_telescope/src/records/exception_record.dart';
+import 'package:fluttersdk_telescope/src/records/frame_perf_record.dart';
 import 'package:fluttersdk_telescope/src/records/gate_record.dart';
 import 'package:fluttersdk_telescope/src/records/http_request_record.dart';
 import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
 import 'package:fluttersdk_telescope/src/records/magic_cache_record.dart';
 import 'package:fluttersdk_telescope/src/records/magic_model_record.dart';
+import 'package:fluttersdk_telescope/src/records/query_record.dart';
 import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 import 'package:fluttersdk_telescope/src/telescope_store.dart';
 
@@ -19,6 +21,382 @@ void main() {
   // Statics persist across tests within the run; reset before every test.
   setUp(() {
     TelescopeStore.resetForTesting();
+  });
+
+  group('TelescopeStore redactor hook', () {
+    String redactor(String s) => s.replaceAll('p@ss', '***');
+
+    test('masks an event payload before the queue and the stream', () async {
+      TelescopeRedaction.redactor = redactor;
+      final Future<EventRecord> emitted = TelescopeStore.onEventRecord.first;
+
+      TelescopeStore.recordEvent(
+        EventRecord(
+          eventType: 'player.open',
+          payload: <String, dynamic>{
+            'line': 'x p@ss',
+            'count': 3,
+            'nested': <String, dynamic>{
+              'l': <dynamic>['p@ss', 7],
+            },
+          },
+          time: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final EventRecord queued = TelescopeStore.recentEvents().single;
+      final EventRecord streamed = await emitted;
+      for (final EventRecord record in <EventRecord>[queued, streamed]) {
+        expect(jsonEncode(record.toJson()), isNot(contains('p@ss')));
+        expect(record.redacted, isTrue);
+        expect(record.toJson()['redacted'], isTrue);
+        expect(
+          record.payload,
+          equals(<String, dynamic>{
+            'line': 'x ***',
+            'count': 3,
+            'nested': <String, dynamic>{
+              'l': <dynamic>['***', 7],
+            },
+          }),
+        );
+      }
+    });
+
+    test('keeps every other field of a redacted event', () {
+      TelescopeRedaction.redactor = redactor;
+      final EventRecord original = EventRecord(
+        eventType: 'player.open',
+        payload: <String, dynamic>{'a': 'b'},
+        time: DateTime(2026, 1, 1),
+        listenerCount: 2,
+        atUs: 42,
+        interactionId: 'i1',
+        linkedBy: 'zone',
+      );
+
+      TelescopeStore.recordEvent(original);
+
+      final Map<String, dynamic> stored =
+          TelescopeStore.recentEvents().single.toJson();
+      expect(stored, equals(original.toJson()..['redacted'] = true));
+    });
+
+    test('a record made before the redactor was set stays unredacted', () {
+      TelescopeStore.recordEvent(_event('before'));
+      TelescopeRedaction.redactor = redactor;
+      TelescopeStore.recordEvent(_event('after'));
+
+      final List<EventRecord> recent = TelescopeStore.recentEvents();
+      expect(recent.first.redacted, isFalse);
+      expect(recent.last.redacted, isTrue);
+    });
+
+    test('leaves a record untouched when no redactor is set', () {
+      final EventRecord record = EventRecord(
+        eventType: 'e',
+        payload: <String, dynamic>{'line': 'x p@ss'},
+        time: DateTime(2026, 1, 1),
+      );
+
+      TelescopeStore.recordEvent(record);
+
+      expect(TelescopeStore.recentEvents().single, same(record));
+      expect(record.redacted, isFalse);
+    });
+
+    test('masks every text field of a log record', () async {
+      TelescopeRedaction.redactor = redactor;
+      final Future<LogRecordEntry> emitted = TelescopeStore.onLogRecord.first;
+
+      TelescopeStore.recordLog(
+        LogRecordEntry(
+          level: 'INFO',
+          levelValue: 800,
+          message: 'open p@ss',
+          loggerName: 'mpv',
+          time: DateTime(2026, 1, 1),
+          error: 'bad p@ss',
+          stackTrace: '#0 f (p@ss.dart:1)',
+          atUs: 77,
+        ),
+      );
+
+      final LogRecordEntry queued = TelescopeStore.recentLogs().single;
+      final LogRecordEntry streamed = await emitted;
+      for (final LogRecordEntry record in <LogRecordEntry>[queued, streamed]) {
+        expect(jsonEncode(record.toJson()), isNot(contains('p@ss')));
+        expect(record.redacted, isTrue);
+        expect(record.atUs, equals(77));
+        expect(record.message, equals('open ***'));
+        expect(record.error, equals('bad ***'));
+        expect(record.stackTrace, equals('#0 f (***.dart:1)'));
+      }
+    });
+
+    test('masks every text field of an exception record', () async {
+      TelescopeRedaction.redactor = redactor;
+      final Future<ExceptionRecord> emitted =
+          TelescopeStore.onExceptionRecord.first;
+
+      TelescopeStore.recordException(
+        ExceptionRecord(
+          exceptionType: 'StateError',
+          message: 'boom p@ss',
+          time: DateTime(2026, 1, 1),
+          stackTrace: '#0 f (p@ss.dart:1)',
+          isolate: 'main',
+        ),
+      );
+
+      final ExceptionRecord queued = TelescopeStore.recentExceptions().single;
+      final ExceptionRecord streamed = await emitted;
+      for (final ExceptionRecord record in <ExceptionRecord>[
+        queued,
+        streamed,
+      ]) {
+        expect(jsonEncode(record.toJson()), isNot(contains('p@ss')));
+        expect(record.redacted, isTrue);
+        expect(record.message, equals('boom ***'));
+        expect(record.stackTrace, equals('#0 f (***.dart:1)'));
+        expect(record.isolate, equals('main'));
+      }
+    });
+
+    test('masks an http record after its key redaction ran', () async {
+      TelescopeRedaction.redactor = redactor;
+      final Future<HttpRequestRecord> emitted =
+          TelescopeStore.onHttpRecord.first;
+
+      TelescopeStore.recordHttp(
+        _httpWith(
+          requestHeaders: <String, String>{
+            'Authorization': 'Bearer abc',
+            'X-Note': 'p@ss',
+          },
+          requestBody: '{"token":"abc","note":"p@ss"}',
+          responseBody: 'plain p@ss',
+        ),
+      );
+
+      final HttpRequestRecord queued = TelescopeStore.recentHttp().single;
+      final HttpRequestRecord streamed = await emitted;
+      for (final HttpRequestRecord record in <HttpRequestRecord>[
+        queued,
+        streamed,
+      ]) {
+        expect(jsonEncode(record.toJson()), isNot(contains('p@ss')));
+        expect(record.redacted, isTrue);
+        expect(record.requestHeaders!['Authorization'], equals('********'));
+        expect(record.requestHeaders!['X-Note'], equals('***'));
+        expect(
+          jsonDecode(record.requestBody!),
+          equals(<String, dynamic>{'token': '********', 'note': '***'}),
+        );
+        expect(record.responseBody, equals('plain ***'));
+      }
+    });
+
+    test('masks the url of an http record', () {
+      TelescopeRedaction.redactor = redactor;
+
+      TelescopeStore.recordHttp(
+        HttpRequestRecord(
+          url: 'https://u:p@ss@host.test/x',
+          method: 'GET',
+          statusCode: 200,
+          durationMs: 1,
+          isError: false,
+          timestamp: DateTime(2026, 1, 1),
+        ),
+      );
+
+      expect(
+        TelescopeStore.recentHttp().single.url,
+        equals('https://u:***@host.test/x'),
+      );
+    });
+
+    test('resetForTesting() drops the redactor', () {
+      TelescopeRedaction.redactor = redactor;
+
+      TelescopeStore.resetForTesting();
+
+      expect(TelescopeRedaction.redactor, isNull);
+    });
+  });
+
+  group('TelescopeStore per-kind capacity', () {
+    test('caps one kind and leaves the shared cap for the others', () {
+      TelescopeStore.setCapacity(3, kind: TelescopeKind.events);
+
+      for (var i = 0; i < 600; i++) {
+        TelescopeStore.recordEvent(_event('E$i'));
+        TelescopeStore.recordLog(_log('info', 'm$i'));
+      }
+
+      expect(
+        TelescopeStore.recentEvents().map((r) => r.eventType).toList(),
+        equals(['E597', 'E598', 'E599']),
+      );
+      expect(TelescopeStore.recentLogs(), hasLength(500));
+    });
+
+    test('a kind cap wins over the shared cap whichever was set last', () {
+      TelescopeStore.setCapacity(4, kind: TelescopeKind.logs);
+      TelescopeStore.setCapacity(2);
+
+      for (var i = 0; i < 6; i++) {
+        TelescopeStore.recordLog(_log('info', 'm$i'));
+        TelescopeStore.recordEvent(_event('E$i'));
+      }
+
+      expect(TelescopeStore.recentLogs(), hasLength(4));
+      expect(TelescopeStore.recentEvents(), hasLength(2));
+    });
+
+    test('the frame-perf kind sets the frame buffer cap', () {
+      TelescopeStore.setCapacity(2, kind: TelescopeKind.framePerf);
+
+      for (var i = 0; i < 5; i++) {
+        TelescopeStore.recordFramePerf(_frame(i));
+      }
+
+      expect(
+        TelescopeStore.recentFramePerf().map((r) => r.frameNumber).toList(),
+        equals([3, 4]),
+      );
+    });
+
+    test('every kind addresses its own buffer', () {
+      for (final TelescopeKind kind in TelescopeKind.values) {
+        TelescopeStore.setCapacity(1, kind: kind);
+      }
+
+      for (var i = 0; i < 3; i++) {
+        TelescopeStore.recordHttp(_http(i));
+        TelescopeStore.recordLog(_log('info', 'm$i'));
+        TelescopeStore.recordException(_exception('e$i'));
+        TelescopeStore.recordMagicModel(_model('User', 'created'));
+        TelescopeStore.recordMagicCache(_cache('k$i'));
+        TelescopeStore.recordEvent(_event('E$i'));
+        TelescopeStore.recordGate(_gate('g$i', true));
+        TelescopeStore.recordDump(_dump('d$i'));
+        TelescopeStore.recordQuery(_query(i));
+        TelescopeStore.recordFramePerf(_frame(i));
+      }
+
+      expect(TelescopeStore.recentHttp(), hasLength(1));
+      expect(TelescopeStore.recentLogs(), hasLength(1));
+      expect(TelescopeStore.recentExceptions(), hasLength(1));
+      expect(TelescopeStore.recentModels(), hasLength(1));
+      expect(TelescopeStore.recentCaches(), hasLength(1));
+      expect(TelescopeStore.recentEvents(), hasLength(1));
+      expect(TelescopeStore.recentGates(), hasLength(1));
+      expect(TelescopeStore.recentDumps(), hasLength(1));
+      expect(TelescopeStore.recentQueries(), hasLength(1));
+      expect(TelescopeStore.recentFramePerf(), hasLength(1));
+    });
+
+    test('resetForTesting() drops every kind cap', () {
+      TelescopeStore.setCapacity(1, kind: TelescopeKind.events);
+      TelescopeStore.resetForTesting();
+
+      for (var i = 0; i < 5; i++) {
+        TelescopeStore.recordEvent(_event('E$i'));
+      }
+
+      expect(TelescopeStore.recentEvents(), hasLength(5));
+    });
+  });
+
+  group('TelescopeStore reads', () {
+    test('an unknown minLevel matches nothing', () {
+      TelescopeStore.recordLog(_log('info', 'a'));
+      TelescopeStore.recordLog(_log('severe', 'b'));
+
+      expect(TelescopeStore.recentLogs(minLevel: 'bogus'), isEmpty);
+    });
+
+    test('a zero or negative limit returns an empty list', () {
+      TelescopeStore.recordEvent(_event('A'));
+      TelescopeStore.recordLog(_log('info', 'a'));
+
+      expect(TelescopeStore.recentEvents(limit: 0), isEmpty);
+      expect(TelescopeStore.recentEvents(limit: -1), isEmpty);
+      expect(TelescopeStore.recentLogs(limit: -1), isEmpty);
+      expect(TelescopeStore.recentLogs(limit: -1, minLevel: 'info'), isEmpty);
+    });
+  });
+
+  group('TelescopeStore event payloads', () {
+    test('stores a value that cannot be encoded as its toString()', () {
+      final DateTime when = DateTime.utc(2026, 1, 2, 3);
+
+      TelescopeStore.recordEvent(
+        EventRecord(
+          eventType: 'player.tick',
+          payload: <String, dynamic>{
+            'at': when,
+            'list': <dynamic>[when, 1],
+            'nested': <Object, dynamic>{
+              'd': const Duration(seconds: 2),
+              1: 'numeric key',
+            },
+          },
+          time: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final EventRecord stored = TelescopeStore.recentEvents().single;
+      expect(
+        stored.payload,
+        equals(<String, dynamic>{
+          'at': when.toString(),
+          'list': <dynamic>[when.toString(), 1],
+          'nested': <String, dynamic>{
+            'd': '0:00:02.000000',
+            '1': 'numeric key',
+          },
+        }),
+      );
+      expect(() => jsonEncode(stored.toJson()), returnsNormally);
+    });
+
+    test('keeps an encodable payload as the very same record', () {
+      final EventRecord record = EventRecord(
+        eventType: 'e',
+        payload: <String, dynamic>{
+          'a': <dynamic>[1, 'b', null, true, 1.5],
+        },
+        time: DateTime(2026, 1, 1),
+      );
+
+      TelescopeStore.recordEvent(record);
+
+      expect(TelescopeStore.recentEvents().single, same(record));
+    });
+
+    test('masks a payload nested past the depth it walks', () {
+      TelescopeRedaction.redactor = (s) => s.replaceAll('p@ss', '***');
+      Object? deep = 'p@ss';
+      for (var i = 0; i < 20000; i++) {
+        deep = <dynamic>[deep];
+      }
+
+      TelescopeStore.recordEvent(
+        EventRecord(
+          eventType: 'e',
+          payload: <String, dynamic>{'deep': deep},
+          time: DateTime(2026, 1, 1),
+        ),
+      );
+
+      expect(
+        TelescopeStore.recentEvents().single.payload.toString(),
+        isNot(contains('p@ss')),
+      );
+    });
   });
 
   group('TelescopeStore default capacity', () {
@@ -1003,6 +1381,23 @@ MagicCacheRecord _cache(String key) => MagicCacheRecord(
 EventRecord _event(String eventType) => EventRecord(
       eventType: eventType,
       payload: const {},
+      time: DateTime(2026, 1, 1),
+    );
+
+FramePerfRecord _frame(int n) => FramePerfRecord(
+      frameNumber: n,
+      buildMicros: 1,
+      rasterMicros: 1,
+      vsyncOverheadMicros: 1,
+      totalSpanMicros: 2,
+      time: DateTime(2026, 1, 1),
+      blocks: const {},
+    );
+
+QueryRecord _query(int n) => QueryRecord(
+      sql: 'select $n',
+      bindings: const [],
+      timeMs: 1,
       time: DateTime(2026, 1, 1),
     );
 

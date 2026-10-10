@@ -8,6 +8,22 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- **`TelescopeRedaction.redactor`, a host-set text redactor applied to every log, event, exception and HTTP record at insert.** `recordLog`, `recordEvent`, `recordException` and `recordHttp` (after its key masking) run it over every String field, every String inside an event payload's nested Maps and Lists, and the stack text, before the record enters its queue or its stream. Each of the four records gains `redacted` (true when a redactor ran), serialized in `toJson`; a record buffered while no redactor was registered stays false, so a consumer that persists records can write only the redacted ones. A subtree nested past 64 levels is masked whole. `redactLogRecord`, `redactExceptionRecord` and `redactEventRecord` join `redactHttpRecord` as the per-record entry points, and `resetForTesting()` unregisters the redactor. (`lib/src/telescope_redaction.dart`, `lib/src/telescope_store.dart`, `lib/src/records/`)
+- **Per-kind buffer capacity.** `TelescopeStore.setCapacity(int, {TelescopeKind? kind})` caps one of the ten buffers (`TelescopeKind`); the call without a kind keeps today's shared behaviour, and a kind cap wins over the shared one. `setFramePerfCapacity` now calls the `framePerf` kind. (`lib/src/telescope_store.dart`)
+- **`LogRecordEntry.atUs`, a monotonic timestamp.** The same `FlutterTimeline.now` clock `EventRecord.atUs` uses, stamped at construction (`LogRecordEntry.fromLogRecord` included) and serialized in `toJson`. (`lib/src/records/log_record_entry.dart`)
+
+### Changed
+
+- **Event payloads are JSON-safe at record time.** `recordEvent` stores a value `jsonEncode` cannot write (a `DateTime`, a `Duration`, any object) as its `toString()`, and a non-String map key likewise, so one bad payload can no longer fail the whole `ext.telescope.events` response. A payload that is already safe keeps its identity. (`lib/src/telescope_redaction.dart`)
+- **`toJson` of the log, event, exception and HTTP records always carries `redacted`.** (`lib/src/records/`)
+
+### Fixed
+
+- **An unknown `minLevel` matched every log line.** `recentLogs(minLevel: 'bogus')` now returns an empty list instead of the whole buffer. (`lib/src/telescope_store.dart`)
+- **A negative `limit` threw.** Every `recentX(limit:)` returns an empty list for a zero or negative limit instead of a `RangeError`. (`lib/src/telescope_store.dart`)
+
 ---
 
 ## [0.0.10] - 2026-10-09

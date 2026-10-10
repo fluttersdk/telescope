@@ -11,6 +11,7 @@ class EventRecord {
     int? atUs,
     this.interactionId,
     this.linkedBy,
+    this.redacted = false,
   }) : atUs = atUs ?? FlutterTimeline.now;
 
   final String eventType;
@@ -36,6 +37,12 @@ class EventRecord {
   /// site does not link at all.
   final String? linkedBy;
 
+  /// True when [TelescopeRedaction.redactor] ran over this record before it
+  /// was buffered. A record made while no redactor was registered is false,
+  /// and a consumer that persists records (a file sink) writes only the true
+  /// ones.
+  final bool redacted;
+
   Map<String, dynamic> toJson() => {
         'eventType': eventType,
         'payload': payload,
@@ -44,5 +51,6 @@ class EventRecord {
         'atUs': atUs,
         if (interactionId != null) 'interactionId': interactionId,
         if (linkedBy != null) 'linkedBy': linkedBy,
+        'redacted': redacted,
       };
 }

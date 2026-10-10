@@ -80,8 +80,34 @@ void main() {
           'isError': false,
           'timestamp': timestamp.toIso8601String(),
           'atUs': 999,
+          'redacted': false,
         }),
       );
+    });
+
+    test('redacted defaults to false, serializes, and survives copyWith', () {
+      final plain = HttpRequestRecord(
+        url: 'https://api.uptizm.com/monitors',
+        method: 'GET',
+        statusCode: 200,
+        durationMs: 1,
+        isError: false,
+        timestamp: timestamp,
+      );
+      final masked = HttpRequestRecord(
+        url: 'https://api.uptizm.com/monitors',
+        method: 'GET',
+        statusCode: 200,
+        durationMs: 1,
+        isError: false,
+        timestamp: timestamp,
+        redacted: true,
+      );
+
+      expect(plain.redacted, isFalse);
+      expect(masked.redacted, isTrue);
+      expect(masked.toJson()['redacted'], isTrue);
+      expect(masked.copyWith(requestBody: 'b').redacted, isTrue);
     });
 
     test('toJson includes optional fields when set', () {
