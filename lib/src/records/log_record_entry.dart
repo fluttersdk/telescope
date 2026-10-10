@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:logging/logging.dart';
+
+import '../telescope_redaction.dart';
 
 /// An immutable log record captured by [LogWatcher].
 class LogRecordEntry {
@@ -10,7 +13,8 @@ class LogRecordEntry {
     required this.time,
     this.error,
     this.stackTrace,
-  });
+    int? atUs,
+  }) : atUs = atUs ?? FlutterTimeline.now;
 
   factory LogRecordEntry.fromLogRecord(LogRecord r) => LogRecordEntry(
         level: r.level.name,
@@ -30,6 +34,19 @@ class LogRecordEntry {
   final String? error;
   final String? stackTrace;
 
+  /// Monotonic microsecond timestamp from `FlutterTimeline.now`, captured at
+  /// construction unless the caller supplies one explicitly. The same clock
+  /// as `EventRecord.atUs`, so a log line orders against an event whatever
+  /// the wall-clock skew; [time] stays the wall-clock field for display.
+  final int atUs;
+
+  /// True when [TelescopeRedaction.redactor] ran over this record before it
+  /// was buffered: only the store's redaction pass sets it, so a record a
+  /// caller constructs is always false. A record made while no redactor was
+  /// registered is false too, and a consumer that persists records (a file
+  /// sink) writes only the true ones.
+  bool get redacted => TelescopeRedaction.isRedacted(this);
+
   Map<String, dynamic> toJson() => {
         'level': level,
         'levelValue': levelValue,
@@ -38,5 +55,7 @@ class LogRecordEntry {
         'time': time.toIso8601String(),
         if (error != null) 'error': error,
         if (stackTrace != null) 'stackTrace': stackTrace,
+        'atUs': atUs,
+        'redacted': redacted,
       };
 }

@@ -10,6 +10,8 @@
 // altered.
 
 import 'dart:convert';
+import 'dart:developer' show ServiceExtensionResponse;
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,6 +25,8 @@ import 'package:fluttersdk_telescope/src/records/http_request_record.dart';
 import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
 import 'package:fluttersdk_telescope/src/records/magic_cache_record.dart';
 import 'package:fluttersdk_telescope/src/records/query_record.dart';
+import 'package:fluttersdk_telescope/src/telescope_file_sink.dart';
+import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 import 'package:fluttersdk_telescope/src/telescope_store.dart';
 import 'package:fluttersdk_telescope/src/watchers/frame_perf_watcher.dart';
 
@@ -809,4 +813,442 @@ void main() {
       expect(decoded.containsKey('livenessCounter'), isTrue);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // since / type / logger filters and the cursor
+  // ---------------------------------------------------------------------------
+
+  EventRecord eventAt(int atUs, {String type = 'player.tick'}) => EventRecord(
+        eventType: type,
+        payload: const <String, dynamic>{},
+        time: DateTime.utc(2026),
+        atUs: atUs,
+      );
+
+  LogRecordEntry logAt(int atUs, {String logger = 'mpv'}) => LogRecordEntry(
+        level: 'INFO',
+        levelValue: 800,
+        message: 'line $atUs',
+        loggerName: logger,
+        time: DateTime.utc(2026),
+        atUs: atUs,
+      );
+
+  Future<Map<String, dynamic>> decodeEvents(Map<String, String> params) async {
+    final result = await eventsHandler('ext.telescope.events', params);
+    return jsonDecode(result.result!) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> decodeConsole(
+    Map<String, String> params,
+  ) async {
+    final result = await consoleHandler('ext.telescope.console', params);
+    return jsonDecode(result.result!) as Map<String, dynamic>;
+  }
+
+  group('ext.telescope.events cursor and filters', () {
+    test('since is exclusive and the cursor is the last atUs returned',
+        () async {
+      for (final atUs in <int>[100, 200, 300]) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final decoded = await decodeEvents({'since': '100'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.map((e) => e['atUs']), equals(<int>[200, 300]));
+      expect(decoded['cursor'], equals(300));
+    });
+
+    test('the cursor is the largest atUs even when records arrive unordered',
+        () async {
+      TelescopeStore.recordEvent(eventAt(300));
+      TelescopeStore.recordEvent(eventAt(200));
+
+      final decoded = await decodeEvents({});
+
+      expect(decoded['cursor'], equals(300));
+    });
+
+    test('the cursor echoes since when nothing newer exists', () async {
+      TelescopeStore.recordEvent(eventAt(100));
+
+      final decoded = await decodeEvents({'since': '100'});
+
+      expect(decoded['events'], isEmpty);
+      expect(decoded['cursor'], equals(100));
+    });
+
+    test('the cursor is null when nothing was returned and no since was given',
+        () async {
+      final decoded = await decodeEvents({});
+
+      expect(decoded.containsKey('cursor'), isTrue);
+      expect(decoded['cursor'], isNull);
+    });
+
+    test('type keeps only event types starting with the prefix', () async {
+      TelescopeStore.recordEvent(eventAt(100, type: 'player.open'));
+      TelescopeStore.recordEvent(eventAt(200, type: 'magic.model'));
+      TelescopeStore.recordEvent(eventAt(300, type: 'player.stall'));
+
+      final decoded = await decodeEvents({'type': 'player.'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(
+        events.map((e) => e['eventType']),
+        equals(<String>['player.open', 'player.stall']),
+      );
+      expect(decoded['cursor'], equals(300));
+    });
+
+    test('limit keeps the newest records after the filters ran', () async {
+      TelescopeStore.recordEvent(eventAt(100, type: 'player.a'));
+      TelescopeStore.recordEvent(eventAt(200, type: 'player.b'));
+      TelescopeStore.recordEvent(eventAt(300, type: 'magic.model'));
+
+      final decoded = await decodeEvents({'type': 'player.', 'limit': '1'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.single['eventType'], equals('player.b'));
+    });
+
+    test('since with a limit returns the oldest records after it', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final decoded = await decodeEvents({'since': '0', 'limit': '50'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.map((e) => e['atUs']), equals(_range(1, 50)));
+      expect(decoded['cursor'], equals(50));
+    });
+
+    test('paging by the returned cursor reads every record, no gap', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final seen = <dynamic>[];
+      String since = '0';
+      for (var page = 0; page < 3; page++) {
+        final decoded = await decodeEvents({'since': since, 'limit': '50'});
+        seen.addAll((decoded['events'] as List<dynamic>).map((e) => e['atUs']));
+        since = '${decoded['cursor']}';
+      }
+
+      expect(seen, equals(_range(1, 120)));
+    });
+
+    test('a page cut inside a run of one atUs keeps the whole run', () async {
+      for (final atUs in <int>[1, 2, 3, 3, 3, 4]) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final decoded = await decodeEvents({'since': '0', 'limit': '3'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.map((e) => e['atUs']), equals(<int>[1, 2, 3, 3, 3]));
+      expect(decoded['cursor'], equals(3));
+    });
+
+    test('paging by the cursor skips no record that shares an atUs', () async {
+      for (final atUs in <int>[1, 2, 3, 3, 3, 4, 4, 5]) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final seen = <dynamic>[];
+      String since = '0';
+      for (var page = 0; page < 4; page++) {
+        final decoded = await decodeEvents({'since': since, 'limit': '3'});
+        seen.addAll((decoded['events'] as List<dynamic>).map((e) => e['atUs']));
+        since = '${decoded['cursor']}';
+      }
+
+      expect(seen, equals(<int>[1, 2, 3, 3, 3, 4, 4, 5]));
+    });
+
+    test('a limit that ends on a unique atUs adds no extra records', () async {
+      for (final atUs in <int>[1, 2, 3, 4]) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final decoded = await decodeEvents({'since': '0', 'limit': '2'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.map((e) => e['atUs']), equals(<int>[1, 2]));
+    });
+
+    test('without since the limit keeps the newest records', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final decoded = await decodeEvents({'limit': '50'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.map((e) => e['atUs']), equals(_range(71, 120)));
+      expect(decoded['cursor'], equals(120));
+    });
+
+    test('a since that is not an integer is refused, not ignored', () async {
+      TelescopeStore.recordEvent(eventAt(100));
+
+      final result = await eventsHandler(
+        'ext.telescope.events',
+        {'since': 'yesterday'},
+      );
+
+      expect(result.errorCode, equals(ServiceExtensionResponse.invalidParams));
+      expect(result.errorDetail, isNot(contains('yesterday')));
+    });
+  });
+
+  group('ext.telescope.console cursor and filters', () {
+    test('since is exclusive and the cursor is the last atUs returned',
+        () async {
+      for (final atUs in <int>[100, 200, 300]) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final decoded = await decodeConsole({'since': '100'});
+      final messages = decoded['messages'] as List<dynamic>;
+
+      expect(messages.map((m) => m['atUs']), equals(<int>[200, 300]));
+      expect(decoded['cursor'], equals(300));
+    });
+
+    test('logger matches the logger name exactly', () async {
+      TelescopeStore.recordLog(logAt(100, logger: 'mpv'));
+      TelescopeStore.recordLog(logAt(200, logger: 'mpv.extra'));
+      TelescopeStore.recordLog(logAt(300, logger: 'app'));
+
+      final decoded = await decodeConsole({'logger': 'mpv'});
+      final messages = decoded['messages'] as List<dynamic>;
+
+      expect(messages.map((m) => m['loggerName']), equals(<String>['mpv']));
+      expect(decoded['cursor'], equals(100));
+    });
+
+    test('logger, since and level combine', () async {
+      TelescopeStore.recordLog(logAt(100));
+      TelescopeStore.recordLog(logAt(200));
+      TelescopeStore.recordLog(logAt(300, logger: 'app'));
+
+      final decoded = await decodeConsole({
+        'logger': 'mpv',
+        'since': '100',
+        'level': 'info',
+      });
+      final messages = decoded['messages'] as List<dynamic>;
+
+      expect(messages.map((m) => m['atUs']), equals(<int>[200]));
+    });
+
+    test('the cursor echoes since when nothing newer exists', () async {
+      TelescopeStore.recordLog(logAt(100));
+
+      final decoded = await decodeConsole({'since': '100'});
+
+      expect(decoded['messages'], isEmpty);
+      expect(decoded['cursor'], equals(100));
+    });
+
+    test('since with a limit returns the oldest records after it', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final decoded = await decodeConsole({'since': '0', 'limit': '50'});
+      final messages = decoded['messages'] as List<dynamic>;
+
+      expect(messages.map((m) => m['atUs']), equals(_range(1, 50)));
+      expect(decoded['cursor'], equals(50));
+    });
+
+    test('paging by the returned cursor reads every record, no gap', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final seen = <dynamic>[];
+      String since = '0';
+      for (var page = 0; page < 3; page++) {
+        final decoded = await decodeConsole({'since': since, 'limit': '50'});
+        seen.addAll(
+          (decoded['messages'] as List<dynamic>).map((m) => m['atUs']),
+        );
+        since = '${decoded['cursor']}';
+      }
+
+      expect(seen, equals(_range(1, 120)));
+    });
+
+    test('a page cut inside a run of one atUs keeps the whole run', () async {
+      for (final atUs in <int>[1, 2, 3, 3, 3, 4]) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final decoded = await decodeConsole({'since': '0', 'limit': '3'});
+      final messages = decoded['messages'] as List<dynamic>;
+
+      expect(messages.map((m) => m['atUs']), equals(<int>[1, 2, 3, 3, 3]));
+      expect(decoded['cursor'], equals(3));
+    });
+
+    test('paging by the cursor skips no record that shares an atUs', () async {
+      for (final atUs in <int>[1, 2, 3, 3, 3, 4, 4, 5]) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final seen = <dynamic>[];
+      String since = '0';
+      for (var page = 0; page < 4; page++) {
+        final decoded = await decodeConsole({'since': since, 'limit': '3'});
+        seen.addAll(
+          (decoded['messages'] as List<dynamic>).map((m) => m['atUs']),
+        );
+        since = '${decoded['cursor']}';
+      }
+
+      expect(seen, equals(<int>[1, 2, 3, 3, 3, 4, 4, 5]));
+    });
+
+    test('without since the limit keeps the newest records', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final decoded = await decodeConsole({'limit': '50'});
+      final messages = decoded['messages'] as List<dynamic>;
+
+      expect(messages.map((m) => m['atUs']), equals(_range(71, 120)));
+      expect(decoded['cursor'], equals(120));
+    });
+
+    test('a since that is not an integer is refused, not ignored', () async {
+      final result = await consoleHandler(
+        'ext.telescope.console',
+        {'since': 'yesterday'},
+      );
+
+      expect(result.errorCode, equals(ServiceExtensionResponse.invalidParams));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ext.telescope.files and ext.telescope.file over the running sink
+  // ---------------------------------------------------------------------------
+
+  group('timeline file extensions', () {
+    late Directory root;
+
+    setUp(() {
+      root = Directory.systemTemp.createTempSync('telescope_file_ext_');
+    });
+
+    tearDown(() async {
+      await TelescopeFileSink.current?.stop();
+      root.deleteSync(recursive: true);
+    });
+
+    Future<Map<String, dynamic>> decodeFile(Map<String, String> params) async {
+      final result = await fileHandler('ext.telescope.file', params);
+      return jsonDecode(result.result!) as Map<String, dynamic>;
+    }
+
+    test('files answers an error when no sink runs', () async {
+      final result = await filesHandler('ext.telescope.files', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+
+      expect(decoded['error'], isA<String>());
+      expect(decoded.containsKey('files'), isFalse);
+    });
+
+    test('file answers an error when no sink runs', () async {
+      final decoded = await decodeFile({'name': 'timeline-x-1.jsonl'});
+
+      expect(decoded['error'], isA<String>());
+    });
+
+    test('files lists the sink files newest first', () async {
+      final sink = await TelescopeFileSink.start(directory: root.path);
+
+      final result = await filesHandler('ext.telescope.files', {});
+      final decoded = jsonDecode(result.result!) as Map<String, dynamic>;
+      final files = decoded['files'] as List<dynamic>;
+
+      expect(files, hasLength(1));
+      expect(files.single['name'], equals((await sink.files()).single['name']));
+      expect(files.single['bytes'], equals(0));
+    });
+
+    test('file returns the lines and the next offset of a listed file',
+        () async {
+      TelescopeRedaction.redactor = (String text) => text;
+      final sink = await TelescopeFileSink.start(directory: root.path);
+      TelescopeStore.recordEvent(eventAt(100));
+      await Future<void>.delayed(Duration.zero);
+      final name = (await sink.files()).single['name']! as String;
+
+      final decoded = await decodeFile({'name': name});
+      final lines = decoded['lines'] as List<dynamic>;
+
+      expect(lines, hasLength(1));
+      expect(
+        (jsonDecode(lines.single as String) as Map<String, dynamic>)['kind'],
+        equals('event'),
+      );
+
+      final tail = await decodeFile({
+        'name': name,
+        'offset': '${decoded['next']}',
+      });
+      expect(tail['lines'], isEmpty);
+      expect(tail['next'], equals(decoded['next']));
+    });
+
+    test('file refuses a name the sink does not list', () async {
+      await TelescopeFileSink.start(directory: root.path);
+      File('${root.path}${Platform.pathSeparator}secret.txt')
+          .writeAsStringSync('not a timeline');
+
+      for (final name in <String>[
+        'secret.txt',
+        '../secret.txt',
+        '${root.path}${Platform.pathSeparator}secret.txt',
+        '',
+      ]) {
+        final decoded = await decodeFile({'name': name});
+
+        expect(decoded['error'], isA<String>(), reason: name);
+        expect(decoded.containsKey('lines'), isFalse, reason: name);
+        expect(jsonEncode(decoded), isNot(contains('secret')), reason: name);
+      }
+    });
+
+    test('file refuses a missing name and a bad offset or maxBytes', () async {
+      final sink = await TelescopeFileSink.start(directory: root.path);
+      final name = (await sink.files()).single['name']! as String;
+
+      expect((await decodeFile({}))['error'], isA<String>());
+      expect(
+        (await decodeFile({'name': name, 'offset': 'abc'}))['error'],
+        isA<String>(),
+      );
+      expect(
+        (await decodeFile({'name': name, 'offset': '-1'}))['error'],
+        isA<String>(),
+      );
+      expect(
+        (await decodeFile({'name': name, 'maxBytes': '0'}))['error'],
+        isA<String>(),
+      );
+    });
+  });
 }
+
+/// The integers from [first] to [last], both inclusive.
+List<int> _range(int first, int last) =>
+    <int>[for (var n = first; n <= last; n++) n];

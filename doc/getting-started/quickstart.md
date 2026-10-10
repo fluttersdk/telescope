@@ -46,10 +46,10 @@ Verify the provider registered correctly. From now on, the artisan fast-cli at `
 ./bin/fsa list
 ```
 
-You should see the `telescope:` namespace with 10 commands: `telescope:install`,
+You should see the `telescope:` namespace with 11 commands: `telescope:install`,
 `telescope:tail`, `telescope:requests`, `telescope:queries`, `telescope:caches`,
 `telescope:events`, `telescope:gates`, `telescope:dumps`, `telescope:frames`,
-`telescope:clear`. The same surface is also reachable via the ~3s cold-start fallbacks
+`telescope:clear`, `telescope:files`. The same surface is also reachable via the ~3s cold-start fallbacks
 `dart run fluttersdk_telescope list` and `dart run fluttersdk_artisan list`.
 
 ---
@@ -95,7 +95,7 @@ To start it manually:
 ./bin/fsa mcp:serve
 ```
 
-Inside a Claude Code session, the 9 `telescope_*` tools are now available. A typical
+Inside a Claude Code session, the 10 `telescope_*` tools are now available. A typical
 inspection flow:
 
 ```
@@ -135,7 +135,7 @@ Clear all buffers before the next test scenario:
 [agent] telescope_clear {}
 ```
 
-All 9 tools follow the same pattern: they query the `ext.telescope.*` VM Service
+All 10 tools follow the same pattern: they query the `ext.telescope.*` VM Service
 extensions registered by `registerAllTelescopeExtensions()` at startup. No source changes
 are needed between queries; the buffers update passively as the app runs.
 
@@ -148,6 +148,8 @@ are needed between queries; the buffers update passively as the app runs.
 - Browse the watcher catalog at [fluttersdk.com/telescope/watchers](https://fluttersdk.com/telescope/watchers)
   to learn which watchers are opt-in and how chain-preservation works with Sentry and Bugsnag.
 - See the full MCP tool input schemas at [fluttersdk.com/telescope/mcp](https://fluttersdk.com/telescope/mcp).
+- Mask secrets in every record with [Redaction](redaction), persist a timeline with the
+  [File sink](file-sink), and follow a buffer with [Cursor and filters](../mcp/cursor-and-filters).
 
 ---
 

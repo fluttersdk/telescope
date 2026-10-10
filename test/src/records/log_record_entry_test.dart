@@ -1,8 +1,11 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 
 import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
+import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 
 void main() {
   group('LogRecordEntry', () {
@@ -56,6 +59,7 @@ void main() {
         message: 'Monitor checked successfully',
         loggerName: 'telescope',
         time: time,
+        atUs: 999,
       );
 
       expect(
@@ -66,7 +70,81 @@ void main() {
           'message': 'Monitor checked successfully',
           'loggerName': 'telescope',
           'time': time.toIso8601String(),
+          'atUs': 999,
+          'redacted': false,
         }),
+      );
+    });
+
+    test('atUs defaults to FlutterTimeline.now captured at construction', () {
+      final int before = FlutterTimeline.now;
+      final record = LogRecordEntry(
+        level: 'INFO',
+        levelValue: 800,
+        message: 'm',
+        loggerName: 'telescope',
+        time: time,
+      );
+      final int after = FlutterTimeline.now;
+
+      expect(record.atUs, inInclusiveRange(before, after));
+    });
+
+    test('atUs accepts an explicit override', () {
+      final record = LogRecordEntry(
+        level: 'INFO',
+        levelValue: 800,
+        message: 'm',
+        loggerName: 'telescope',
+        time: time,
+        atUs: 555,
+      );
+
+      expect(record.atUs, equals(555));
+    });
+
+    test('fromLogRecord stamps atUs from the monotonic clock', () {
+      final int before = FlutterTimeline.now;
+      final record = LogRecordEntry.fromLogRecord(
+        LogRecord(Level.INFO, 'm', 'telescope'),
+      );
+      final int after = FlutterTimeline.now;
+
+      expect(record.atUs, inInclusiveRange(before, after));
+    });
+
+    test('redacted is true only on the copy a redactor produced', () {
+      addTearDown(TelescopeRedaction.resetForTesting);
+      final plain = LogRecordEntry(
+        level: 'INFO',
+        levelValue: 800,
+        message: 'm',
+        loggerName: 'telescope',
+        time: time,
+      );
+      TelescopeRedaction.redactor = (String s) => s;
+      final masked = TelescopeRedaction.redactLogRecord(plain)!;
+
+      expect(plain.redacted, isFalse);
+      expect(masked.redacted, isTrue);
+      expect(masked.toJson()['redacted'], isTrue);
+    });
+
+    test('a caller cannot construct a record flagged redacted', () {
+      expect(
+        () => Function.apply(
+          LogRecordEntry.new,
+          const <Object?>[],
+          <Symbol, Object?>{
+            #level: 'INFO',
+            #levelValue: 800,
+            #message: 'm',
+            #loggerName: 'telescope',
+            #time: time,
+            #redacted: true,
+          },
+        ),
+        throwsNoSuchMethodError,
       );
     });
 

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart' show FlutterTimeline;
 
+import '../telescope_redaction.dart';
+
 /// An immutable HTTP request/response record captured by a [TelescopeHttpAdapter].
 class HttpRequestRecord {
   HttpRequestRecord({
@@ -64,8 +66,17 @@ class HttpRequestRecord {
   /// site does not link at all.
   final String? linkedBy;
 
+  /// True when [TelescopeRedaction.redactor] ran over this record before it
+  /// was buffered: only the store's redaction pass sets it, so a record a
+  /// caller constructs is always false. A record made while no redactor was
+  /// registered is false too, and a consumer that persists records (a file
+  /// sink) writes only the true ones.
+  bool get redacted => TelescopeRedaction.isRedacted(this);
+
   /// Copy with the capture payload replaced; every other field, [atUs]
-  /// included, carries over so the copy keeps its place on the trace.
+  /// included, carries over so the copy keeps its place on the trace. The
+  /// copy is not [redacted]: the replaced payload is caller input no
+  /// redactor has seen.
   HttpRequestRecord copyWith({
     Map<String, String>? requestHeaders,
     String? requestBody,
@@ -107,5 +118,6 @@ class HttpRequestRecord {
         'atUs': atUs,
         if (interactionId != null) 'interactionId': interactionId,
         if (linkedBy != null) 'linkedBy': linkedBy,
+        'redacted': redacted,
       };
 }

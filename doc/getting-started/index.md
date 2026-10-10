@@ -27,7 +27,9 @@ dart run fluttersdk_telescope telescope:install
 The command scaffolds the consumer artisan harness if it is missing, runs
 `plugin:install fluttersdk_telescope`, and patches `lib/main.dart` so
 `TelescopePlugin.install()` runs at startup inside a `kDebugMode` guard. Release builds
-tree-shake the entire subsystem; there is zero production overhead.
+tree-shake the entire subsystem; there is zero production overhead. The guard belongs to the call
+site: `kDebugMode` is what the installer writes, and `!kReleaseMode` is the guard to use when profile
+builds should carry telescope too (see [Call-site guard](../watchers/index.md#call-site-guard)).
 
 After install, the artisan native AOT launcher at `./bin/fsa` gives ~110ms warm startup
 for every subsequent telescope command (`./bin/fsa telescope:tail`, etc.).
@@ -41,8 +43,9 @@ for every subsequent telescope command (`./bin/fsa telescope:tail`, etc.).
 | fluttersdk_artisan | `^0.0.19` | Pulled in transitively by telescope; the install command and MCP tools work without prior setup. |
 | Magic stack | optional | Enables 6 additional watchers: HTTP facade, models, cache, events, gates, queries. |
 
-Telescope is a debug-only package. The `kDebugMode` gate at the consumer install site is
-load-bearing: all release-mode tree-shaking depends on it.
+Telescope is a development package: it must never run in a release build. A `kDebugMode` or
+`!kReleaseMode` guard at the consumer install site is load-bearing, because all release-mode
+tree-shaking depends on it. Telescope itself installs no guard.
 
 ## What gets captured
 
@@ -60,6 +63,17 @@ With the Magic stack (`MagicTelescopeIntegration.install()` from `magic_devtools
 - **In-app events** dispatched through `Event.dispatch`.
 - **Gate checks**: every `Gate.allows` / `Gate.denies` call with result + user id.
 - **DB queries**: SQL, bindings, and execution time via the magic database connector.
+
+## Host features
+
+- [**Redaction**](redaction): the credential lists and `TelescopeRedaction.redactor`, the host hook that
+  masks every log, event, exception and HTTP record at insert.
+- [**File sink**](file-sink): `TelescopeFileSink`, a rotating JSONL timeline on disk that writes only
+  redacted records, read back through `telescope:files`.
+- [**Buffers**](buffers): per-kind capacity with `TelescopeStore.setCapacity`, the `atUs` clock, and how
+  `limit` and `minLevel` behave.
+- [**Cursor and filters**](../mcp/cursor-and-filters): `since`, `type`, `logger` and `cursor` on the read
+  extensions, and `--json` / `--follow` on the CLI.
 
 ## Next steps
 

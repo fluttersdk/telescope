@@ -17,12 +17,31 @@ import 'records/magic_model_record.dart';
 import 'records/query_record.dart';
 import 'telescope_redaction.dart';
 
+/// The ten ring buffers of [TelescopeStore], for [TelescopeStore.setCapacity].
+enum TelescopeKind {
+  http,
+  logs,
+  exceptions,
+  models,
+  caches,
+  events,
+  gates,
+  dumps,
+  queries,
+  framePerf,
+}
+
 /// In-memory ring-buffer store for the 9 V1+alpha-2 watcher record types
 /// plus the frame-perf buffer.
 ///
-/// Default cap: 500 entries per buffer (configurable via [setCapacity]).
-/// The frame-perf buffer has its own capacity ([setFramePerfCapacity],
-/// default 3600) rather than sharing [_cap]; see its field docblock.
+/// Default cap: 500 entries per buffer (configurable via [setCapacity], for
+/// every buffer at once or for one [TelescopeKind]). The frame-perf buffer
+/// has its own capacity (default 3600) rather than sharing [_cap]; see its
+/// field docblock.
+///
+/// The log, event, exception and HTTP buffers hold records already run
+/// through [TelescopeRedaction.redactor] when one is registered.
+///
 /// Singleton accessed via static methods. Hot-restart resets the buffers
 /// naturally (statics re-run their initializers).
 class TelescopeStore {
@@ -40,6 +59,10 @@ class TelescopeStore {
   /// natural size is an order of magnitude larger than an exception
   /// buffer's, so it gets its own field: 3600 is about a minute at 60fps.
   static int _framePerfCap = 3600;
+
+  /// Caps set for one [TelescopeKind]; each wins over [_cap] for its buffer.
+  /// Frame perf is not here, it keeps [_framePerfCap].
+  static final Map<TelescopeKind, int> _kindCaps = <TelescopeKind, int>{};
 
   static final Queue<HttpRequestRecord> _http = Queue<HttpRequestRecord>();
   static final Queue<LogRecordEntry> _logs = Queue<LogRecordEntry>();
@@ -73,12 +96,28 @@ class TelescopeStore {
   static final StreamController<FramePerfRecord> _framePerfStream =
       StreamController<FramePerfRecord>.broadcast();
 
-  /// Set per-buffer capacity (default 500).
-  static void setCapacity(int cap) => _cap = cap;
+  /// Set the capacity of every buffer but frame perf (default 500), or of
+  /// the one buffer [kind] names.
+  ///
+  /// A [kind] cap wins over the shared one whichever was set last, and the
+  /// shared call leaves it alone. A cap below the current length trims on
+  /// the next record, not retroactively. Zero or negative keeps nothing.
+  static void setCapacity(int cap, {TelescopeKind? kind}) {
+    if (kind == null) {
+      _cap = cap;
+    } else if (kind == TelescopeKind.framePerf) {
+      _framePerfCap = cap;
+    } else {
+      _kindCaps[kind] = cap;
+    }
+  }
 
   /// Set the frame-perf buffer's own capacity (default 3600). Independent
-  /// of [setCapacity]; see [_framePerfCap] for why.
-  static void setFramePerfCapacity(int cap) => _framePerfCap = cap;
+  /// of the shared [setCapacity]; see [_framePerfCap] for why.
+  static void setFramePerfCapacity(int cap) =>
+      setCapacity(cap, kind: TelescopeKind.framePerf);
+
+  static int _capacityOf(TelescopeKind kind) => _kindCaps[kind] ?? _cap;
 
   /// Pause all recording. Calls become no-ops until [resume].
   static void pause() => _paused = true;
@@ -110,39 +149,54 @@ class TelescopeStore {
 
   /// Buffer [r] with its credentials masked by [TelescopeRedaction], and
   /// emit the masked copy on [onHttpRecord]. Never throws on a malformed
-  /// body: one that is not JSON is buffered as given.
+  /// body: one that is not JSON is buffered as given. When a
+  /// [TelescopeRedaction.redactor] is registered it runs after the key
+  /// masking, before the record enters the queue or the stream; a record
+  /// the redactor throws on is dropped, neither buffered nor emitted.
   static void recordHttp(HttpRequestRecord r) {
     if (_paused) return;
-    final HttpRequestRecord redacted = TelescopeRedaction.redactHttpRecord(r);
+    final HttpRequestRecord? redacted = TelescopeRedaction.redactHttpRecord(r);
+    if (redacted == null) return;
     _http.addLast(redacted);
-    while (_http.length > _cap) {
+    while (_http.length > _capacityOf(TelescopeKind.http)) {
       _http.removeFirst();
     }
     _httpStream.add(redacted);
   }
 
+  /// Buffer [r] and emit it on [onLogRecord], after the registered
+  /// [TelescopeRedaction.redactor] (if any) ran over its text; dropped when
+  /// the redactor throws.
   static void recordLog(LogRecordEntry r) {
     if (_paused) return;
-    _logs.addLast(r);
-    while (_logs.length > _cap) {
+    final LogRecordEntry? redacted = TelescopeRedaction.redactLogRecord(r);
+    if (redacted == null) return;
+    _logs.addLast(redacted);
+    while (_logs.length > _capacityOf(TelescopeKind.logs)) {
       _logs.removeFirst();
     }
-    _logStream.add(r);
+    _logStream.add(redacted);
   }
 
+  /// Buffer [r] and emit it on [onExceptionRecord], after the registered
+  /// [TelescopeRedaction.redactor] (if any) ran over its message and stack;
+  /// dropped when the redactor throws.
   static void recordException(ExceptionRecord r) {
     if (_paused) return;
-    _exceptions.addLast(r);
-    while (_exceptions.length > _cap) {
+    final ExceptionRecord? redacted =
+        TelescopeRedaction.redactExceptionRecord(r);
+    if (redacted == null) return;
+    _exceptions.addLast(redacted);
+    while (_exceptions.length > _capacityOf(TelescopeKind.exceptions)) {
       _exceptions.removeFirst();
     }
-    _exceptionStream.add(r);
+    _exceptionStream.add(redacted);
   }
 
   static void recordMagicModel(MagicModelRecord r) {
     if (_paused) return;
     _models.addLast(r);
-    while (_models.length > _cap) {
+    while (_models.length > _capacityOf(TelescopeKind.models)) {
       _models.removeFirst();
     }
     _modelStream.add(r);
@@ -151,25 +205,31 @@ class TelescopeStore {
   static void recordMagicCache(MagicCacheRecord r) {
     if (_paused) return;
     _caches.addLast(r);
-    while (_caches.length > _cap) {
+    while (_caches.length > _capacityOf(TelescopeKind.caches)) {
       _caches.removeFirst();
     }
     _cacheStream.add(r);
   }
 
+  /// Buffer [r] and emit it on [onEventRecord], with its payload made
+  /// JSON-safe and run through the registered [TelescopeRedaction.redactor]
+  /// (if any) first; dropped when the redactor throws. See
+  /// [TelescopeRedaction.redactEventRecord].
   static void recordEvent(EventRecord r) {
     if (_paused) return;
-    _events.addLast(r);
-    while (_events.length > _cap) {
+    final EventRecord? redacted = TelescopeRedaction.redactEventRecord(r);
+    if (redacted == null) return;
+    _events.addLast(redacted);
+    while (_events.length > _capacityOf(TelescopeKind.events)) {
       _events.removeFirst();
     }
-    _eventStream.add(r);
+    _eventStream.add(redacted);
   }
 
   static void recordGate(GateRecord r) {
     if (_paused) return;
     _gates.addLast(r);
-    while (_gates.length > _cap) {
+    while (_gates.length > _capacityOf(TelescopeKind.gates)) {
       _gates.removeFirst();
     }
     _gateStream.add(r);
@@ -178,7 +238,7 @@ class TelescopeStore {
   static void recordDump(DumpRecord r) {
     if (_paused) return;
     _dumps.addLast(r);
-    while (_dumps.length > _cap) {
+    while (_dumps.length > _capacityOf(TelescopeKind.dumps)) {
       _dumps.removeFirst();
     }
     _dumpStream.add(r);
@@ -187,7 +247,7 @@ class TelescopeStore {
   static void recordQuery(QueryRecord r) {
     if (_paused) return;
     _queries.addLast(r);
-    while (_queries.length > _cap) {
+    while (_queries.length > _capacityOf(TelescopeKind.queries)) {
       _queries.removeFirst();
     }
     _queryStream.add(r);
@@ -230,9 +290,12 @@ class TelescopeStore {
 
   static List<T> _trim<T>(List<T> list, int? limit) {
     if (limit == null || list.length <= limit) return list;
+    if (limit <= 0) return <T>[];
     return list.sublist(list.length - limit);
   }
 
+  /// False for a [min] that is not a level name: a typo must not read as
+  /// "every level", which an agent would take for a clean log.
   static bool _meetsLevel(String actual, String min) {
     const order = [
       'finest',
@@ -244,8 +307,9 @@ class TelescopeStore {
       'severe',
       'shout',
     ];
-    return order.indexOf(actual.toLowerCase()) >=
-        order.indexOf(min.toLowerCase());
+    final int minIndex = order.indexOf(min.toLowerCase());
+    if (minIndex < 0) return false;
+    return order.indexOf(actual.toLowerCase()) >= minIndex;
   }
 
   /// Total number of HTTP requests currently in flight across every
@@ -286,6 +350,8 @@ class TelescopeStore {
     clear();
     _paused = false;
     _cap = 500;
+    _kindCaps.clear();
+    TelescopeRedaction.redactor = null;
     _framePerfCap = 3600;
     // The HTTP-adapter registry is a singleton list owned by
     // `internal/http_adapter_registry.dart`; clearing it here keeps test

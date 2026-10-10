@@ -2,7 +2,8 @@
 ///
 /// Imported by the consumer's `lib/app/_plugins.g.dart` codegen (which runs
 /// under `dart run` on the pure Dart VM, not under `flutter run`). Re-exports
-/// the artisan provider class plus the codegen-convention alias so
+/// the artisan provider class, the pure-Dart [followCursor] loop that a
+/// `--follow` command builds on, plus the codegen-convention alias so
 /// `dart run artisan list` and `dart run fluttersdk_artisan:mcp` can wire
 /// telescope without dragging the Flutter runtime into the consumer wrapper.
 ///
@@ -13,6 +14,7 @@ library;
 
 import 'src/telescope_artisan_provider.dart';
 
+export 'src/cursor_follow.dart' show followCursor;
 export 'src/telescope_artisan_provider.dart' show TelescopeArtisanProvider;
 
 /// Codegen-convention alias for [TelescopeArtisanProvider].

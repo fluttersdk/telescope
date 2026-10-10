@@ -1,5 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:fluttersdk_telescope/src/records/event_record.dart';
+import 'package:fluttersdk_telescope/src/records/exception_record.dart';
+import 'package:fluttersdk_telescope/src/records/http_request_record.dart';
+import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
 import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 import 'package:fluttersdk_telescope/src/telescope_store.dart';
 
@@ -327,6 +331,135 @@ void main() {
             'qr_svg',
             'backup_key',
           ]),
+        );
+      });
+    });
+
+    group('redactor', () {
+      test('is null until a host registers one', () {
+        expect(TelescopeRedaction.redactor, isNull);
+      });
+
+      test('resetForTesting() unregisters it', () {
+        TelescopeRedaction.redactor = (String s) => s;
+
+        TelescopeRedaction.resetForTesting();
+
+        expect(TelescopeRedaction.redactor, isNull);
+      });
+
+      test('hands the record back untouched while none is registered', () {
+        final LogRecordEntry log = LogRecordEntry(
+          level: 'INFO',
+          levelValue: 800,
+          message: 'm',
+          loggerName: 'l',
+          time: DateTime(2026, 1, 1),
+        );
+        final ExceptionRecord exception = ExceptionRecord(
+          exceptionType: 'E',
+          message: 'm',
+          time: DateTime(2026, 1, 1),
+        );
+
+        expect(TelescopeRedaction.redactLogRecord(log), same(log));
+        expect(TelescopeRedaction.redactExceptionRecord(exception),
+            same(exception));
+      });
+
+      test('drops a record when the redactor throws', () {
+        TelescopeRedaction.redactor = (String s) => throw StateError(s);
+
+        expect(
+          TelescopeRedaction.redactLogRecord(
+            LogRecordEntry(
+              level: 'INFO',
+              levelValue: 800,
+              message: 'm',
+              loggerName: 'l',
+              time: DateTime(2026, 1, 1),
+            ),
+          ),
+          isNull,
+        );
+        expect(
+          TelescopeRedaction.redactExceptionRecord(
+            ExceptionRecord(
+              exceptionType: 'E',
+              message: 'm',
+              time: DateTime(2026, 1, 1),
+            ),
+          ),
+          isNull,
+        );
+        expect(
+          TelescopeRedaction.redactEventRecord(
+            EventRecord(
+              eventType: 'e',
+              payload: <String, dynamic>{},
+              time: DateTime(2026, 1, 1),
+            ),
+          ),
+          isNull,
+        );
+        expect(
+          TelescopeRedaction.redactHttpRecord(
+            HttpRequestRecord(
+              url: 'https://host.test/',
+              method: 'GET',
+              statusCode: 200,
+              durationMs: 1,
+              isError: false,
+              timestamp: DateTime(2026, 1, 1),
+            ),
+          ),
+          isNull,
+        );
+      });
+
+      test('runs every String field of a log and an exception record', () {
+        TelescopeRedaction.redactor = (String s) => s.toUpperCase();
+
+        final LogRecordEntry log = TelescopeRedaction.redactLogRecord(
+          LogRecordEntry(
+            level: 'info',
+            levelValue: 800,
+            message: 'm',
+            loggerName: 'l',
+            time: DateTime(2026, 1, 1),
+            error: 'e',
+            stackTrace: 's',
+          ),
+        )!;
+        final ExceptionRecord exception =
+            TelescopeRedaction.redactExceptionRecord(
+          ExceptionRecord(
+            exceptionType: 't',
+            message: 'm',
+            time: DateTime(2026, 1, 1),
+            stackTrace: 's',
+            isolate: 'i',
+          ),
+        )!;
+
+        expect(
+          <String?>[
+            log.level,
+            log.message,
+            log.loggerName,
+            log.error,
+            log.stackTrace,
+          ],
+          everyElement(anyOf('INFO', 'M', 'L', 'E', 'S')),
+        );
+        expect(
+          <String?>[
+            exception.exceptionType,
+            exception.message,
+            exception.stackTrace,
+            exception.isolate,
+          ],
+          equals(<String?>['T', 'M', 'S', 'I']),
         );
       });
     });

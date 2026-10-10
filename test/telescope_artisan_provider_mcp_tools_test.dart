@@ -229,6 +229,7 @@ void main() {
           'telescope:dumps',
           'telescope:frames',
           'telescope:clear',
+          'telescope:files',
         ]),
       );
     });

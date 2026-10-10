@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:fluttersdk_artisan/artisan.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -5,23 +7,32 @@ import 'package:fluttersdk_telescope/src/commands/telescope_tail_command.dart';
 
 /// Stubs [ArtisanContext.callExtension] so tests never hit a real VM Service.
 ///
-/// Records the last extension method name + params for assertion, then returns
-/// the [_response] payload provided at construction.
+/// Answers each call with the next of [responses], repeating the last one, and
+/// keeps a copy of every call's params in [calls]. [lastMethod] and
+/// [lastParams] hold the most recent call.
 class _StubContext extends ArtisanContext {
   _StubContext({
     required ArtisanInput input,
     required ArtisanOutput output,
-    required Map<String, dynamic> response,
-  })  : _response = response,
+    Map<String, dynamic>? response,
+    List<Map<String, dynamic>>? responses,
+    this.failOnCall,
+  })  : _responses = responses ?? <Map<String, dynamic>>[response!],
         super.bare(input, output);
 
-  final Map<String, dynamic> _response;
+  final List<Map<String, dynamic>> _responses;
+
+  /// The 1-based call that throws, as a lost VM Service connection does.
+  final int? failOnCall;
 
   /// The most recent extension method forwarded to [callExtension].
   String? lastMethod;
 
   /// The most recent params forwarded to [callExtension].
   Map<String, dynamic>? lastParams;
+
+  /// A copy of the params of every [callExtension] call, in order.
+  final List<Map<String, dynamic>> calls = <Map<String, dynamic>>[];
 
   @override
   Future<T> callExtension<T>(
@@ -30,7 +41,11 @@ class _StubContext extends ArtisanContext {
   ]) async {
     lastMethod = method;
     lastParams = params;
-    return _response as T;
+    calls.add(Map<String, dynamic>.of(params ?? <String, dynamic>{}));
+    if (calls.length == failOnCall) throw StateError('The app is gone.');
+    final index =
+        calls.length <= _responses.length ? calls.length : _responses.length;
+    return _responses[index - 1] as T;
   }
 }
 
@@ -185,6 +200,216 @@ void main() {
       final code = await TelescopeTailCommand().handle(ctx);
 
       expect(code, equals(0));
+    });
+
+    test('configure registers --since, --logger, --json and --follow', () {
+      final parser = ArgParser();
+
+      TelescopeTailCommand().configure(parser);
+
+      expect(parser.options.containsKey('since'), isTrue);
+      expect(parser.options.containsKey('logger'), isTrue);
+      expect(parser.options['json']!.isFlag, isTrue);
+      expect(parser.options['follow']!.isFlag, isTrue);
+    });
+
+    test('handle forwards since and logger when provided', () async {
+      final ctx = _StubContext(
+        input: MapInput(const {'since': '100', 'logger': 'mpv'}),
+        output: BufferedOutput(),
+        response: const {'messages': <dynamic>[]},
+      );
+
+      await TelescopeTailCommand().handle(ctx);
+
+      expect(ctx.lastParams, containsPair('since', '100'));
+      expect(ctx.lastParams, containsPair('logger', 'mpv'));
+    });
+
+    test('handle omits since and logger when not provided', () async {
+      final ctx = _StubContext(
+        input: MapInput(const {}),
+        output: BufferedOutput(),
+        response: const {'messages': <dynamic>[]},
+      );
+
+      await TelescopeTailCommand().handle(ctx);
+
+      expect(ctx.lastParams, isNot(contains('since')));
+      expect(ctx.lastParams, isNot(contains('logger')));
+    });
+
+    test('--json prints one decodable JSON object per line', () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {'json': true}),
+        output: output,
+        response: const {
+          'messages': [
+            {
+              'time': '2026-05-18T12:00:00.000Z',
+              'level': 'INFO',
+              'loggerName': 'mpv',
+              'message': 'first',
+              'atUs': 100,
+            },
+            {
+              'time': '2026-05-18T12:00:01.000Z',
+              'level': 'WARNING',
+              'loggerName': 'mpv',
+              'message': 'second "quoted"',
+              'atUs': 200,
+            },
+          ],
+        },
+      );
+
+      final code = await TelescopeTailCommand().handle(ctx);
+
+      final lines = const LineSplitter().convert(output.content);
+      expect(code, equals(0));
+      expect(lines, hasLength(2));
+      final decoded =
+          lines.map((l) => jsonDecode(l) as Map<String, dynamic>).toList();
+      expect(decoded.first['message'], equals('first'));
+      expect(decoded.last['message'], equals('second "quoted"'));
+    });
+
+    test('--json prints nothing when there are no records', () async {
+      final output = BufferedOutput();
+      final ctx = _StubContext(
+        input: MapInput(const {'json': true}),
+        output: output,
+        response: const {'messages': <dynamic>[]},
+      );
+
+      await TelescopeTailCommand().handle(ctx);
+
+      expect(output.content, isEmpty);
+    });
+
+    group('--follow', () {
+      test('polls again from the cursor the first poll returned', () async {
+        final delays = <Duration>[];
+        final output = BufferedOutput();
+        final ctx = _StubContext(
+          input: MapInput(const {
+            'follow': true,
+            'limit': '50',
+            'logger': 'mpv',
+          }),
+          output: output,
+          responses: const [
+            {
+              'messages': [
+                {
+                  'time': 't1',
+                  'level': 'INFO',
+                  'loggerName': 'mpv',
+                  'message': 'first',
+                },
+              ],
+              'cursor': 300,
+            },
+            {
+              'messages': [
+                {
+                  'time': 't2',
+                  'level': 'INFO',
+                  'loggerName': 'mpv',
+                  'message': 'second',
+                },
+              ],
+              'cursor': 400,
+            },
+          ],
+        );
+
+        final code = await TelescopeTailCommand(
+          delay: (Duration d) async => delays.add(d),
+          shouldStop: (int polls) => polls >= 2,
+        ).handle(ctx);
+
+        expect(code, equals(0));
+        expect(ctx.calls, hasLength(2));
+        expect(ctx.calls.first, containsPair('limit', '50'));
+        expect(ctx.calls.first, isNot(contains('since')));
+        expect(ctx.calls.last, containsPair('since', '300'));
+        expect(ctx.calls.last, containsPair('logger', 'mpv'));
+        expect(ctx.calls.last, isNot(contains('limit')));
+        expect(delays, equals(const [Duration(seconds: 1)]));
+        expect(output.content, contains('first'));
+        expect(output.content, contains('second'));
+      });
+
+      test('keeps the given since while no cursor has come back', () async {
+        final ctx = _StubContext(
+          input: MapInput(const {'follow': true, 'since': '100'}),
+          output: BufferedOutput(),
+          response: const {'messages': <dynamic>[], 'cursor': 100},
+        );
+
+        await TelescopeTailCommand(
+          delay: (Duration d) async {},
+          shouldStop: (int polls) => polls >= 3,
+        ).handle(ctx);
+
+        expect(ctx.calls.map((c) => c['since']), everyElement(equals('100')));
+      });
+
+      test('does not warn about an empty poll', () async {
+        final output = BufferedOutput();
+        final ctx = _StubContext(
+          input: MapInput(const {'follow': true}),
+          output: output,
+          response: const {'messages': <dynamic>[]},
+        );
+
+        await TelescopeTailCommand(
+          delay: (Duration d) async {},
+          shouldStop: (int polls) => polls >= 2,
+        ).handle(ctx);
+
+        expect(output.content, isEmpty);
+      });
+
+      test('on the real clock polls again after a second until a read fails',
+          () async {
+        final ctx = _StubContext(
+          input: MapInput(const {'follow': true}),
+          output: BufferedOutput(),
+          responses: const [
+            {
+              'messages': <dynamic>[],
+              'cursor': 300,
+            },
+          ],
+          failOnCall: 2,
+        );
+
+        await expectLater(
+          TelescopeTailCommand().handle(ctx),
+          throwsStateError,
+        );
+
+        expect(ctx.calls, hasLength(2));
+        expect(ctx.calls.last, containsPair('since', '300'));
+      });
+
+      test('without --follow polls exactly once', () async {
+        final ctx = _StubContext(
+          input: MapInput(const {}),
+          output: BufferedOutput(),
+          response: const {'messages': <dynamic>[]},
+        );
+
+        await TelescopeTailCommand(
+          delay: (Duration d) async {},
+          shouldStop: (int polls) => false,
+        ).handle(ctx);
+
+        expect(ctx.calls, hasLength(1));
+      });
     });
   });
 }

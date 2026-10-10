@@ -40,6 +40,9 @@ All buffer-reading tools (every tool except `telescope_clear`) share these conve
   `telescope_clear`), the response is `{"records": []}`. This is not an error.
 - **JSON envelope.** Every tool returns a JSON object. The outer shape is always
   `{"records": [...]}`. Individual record field shapes are documented per tool below.
+- **Redaction.** Log, event, exception and HTTP records are masked at insert when the host registered a
+  `TelescopeRedaction.redactor` (see [Redaction](../getting-started/redaction.md)), and each carries a
+  `redacted` boolean. An unknown log `level` and a zero or negative `limit` return nothing.
 - **Error shape.** On failure (app not running, VM Service unreachable), `McpServer` returns
   `CallToolResult` with `isError: true` and an actionable plain-text message.
 
@@ -59,23 +62,29 @@ Use this to inspect what the app logged without scraping `flutter run` stdout vi
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `limit` | integer | no | Maximum number of records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer (cap enforced by ring-buffer size, 500). |
-| `level` | string | no | Minimum log level to include. Common values: `FINE`, `INFO`, `WARNING`, `SEVERE`, `SHOUT`. Omit for all levels. |
+| `level` | string | no | Minimum log level to include. Common values: `FINE`, `INFO`, `WARNING`, `SEVERE`, `SHOUT`. Omit for all levels. A name that is not a level matches nothing. |
+
+The extension behind this tool also accepts `since` and `logger` and answers a `cursor`; the tool
+descriptor does not declare them. See [Cursor and filters](cursor-and-filters.md).
 
 ### Output Shape
 
 ```json
 {
-  "records": [
+  "messages": [
     {
       "level": "WARNING",
       "levelValue": 900,
       "message": "Monitor check timed out after 30s",
       "loggerName": "MonitorController",
       "time": "2026-05-20T14:32:10.123Z",
+      "atUs": 81234567,
+      "redacted": false,
       "error": "TimeoutException: ...",
       "stackTrace": "#0 MonitorController.check ..."
     }
-  ]
+  ],
+  "cursor": 81234567
 }
 ```
 
@@ -86,8 +95,11 @@ Use this to inspect what the app logged without scraping `flutter run` stdout vi
 | `message` | string | yes | Log message string |
 | `loggerName` | string | yes | Name of the `Logger` instance that emitted the record |
 | `time` | string | yes | ISO 8601 UTC timestamp |
+| `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now`, the same clock as event records |
+| `redacted` | boolean | yes | True when `TelescopeRedaction.redactor` ran over the record before it was buffered |
 | `error` | string | no | Error object stringified, when one was attached |
 | `stackTrace` | string | no | Stack trace stringified, when one was attached |
+| `cursor` | integer or null | yes (envelope) | Largest `atUs` returned, else the `since` given, else null |
 
 ### Example Invocations
 
@@ -143,7 +155,8 @@ Use this to debug API issues without instrumenting the app or watching network p
       },
       "requestBody": null,
       "responseBody": "{\"data\": [...]}",
-      "atUs": 1234567
+      "atUs": 1234567,
+      "redacted": false
     }
   ]
 }
@@ -167,6 +180,7 @@ Use this to debug API issues without instrumenting the app or watching network p
 | `atUs` | integer | yes | Monotonic microsecond timestamp from `FlutterTimeline.now`, captured at record construction |
 | `interactionId` | string | no | Correlates this record to others captured during the same logical interaction |
 | `linkedBy` | string | no | How `interactionId` was derived: `zone` \| `frame` \| `window` |
+| `redacted` | boolean | yes | True when `TelescopeRedaction.redactor` ran over the record before it was buffered |
 
 ### Example Invocations
 
@@ -217,7 +231,8 @@ you need the stack without scraping `flutter run` stdout.
       "message": "Bad state: Stream has already been listened to",
       "time": "2026-05-20T14:33:00.789Z",
       "stackTrace": "#0 _StreamController._subscribe ...",
-      "isolate": "main"
+      "isolate": "main",
+      "redacted": false
     }
   ]
 }
@@ -230,6 +245,7 @@ you need the stack without scraping `flutter run` stdout.
 | `time` | string | yes | ISO 8601 UTC timestamp |
 | `stackTrace` | string | no | Full stack trace, when available |
 | `isolate` | string | no | Isolate name where the exception was caught |
+| `redacted` | boolean | yes | True when `TelescopeRedaction.redactor` ran over the record before it was buffered |
 
 ### Example Invocations
 
@@ -267,11 +283,14 @@ invalidation, broadcast echoes, model lifecycle transitions) without adding `pri
 |---|---|---|---|
 | `limit` | integer | no | Maximum number of event records to return: the most recent N, in chronological order (oldest of that window first, newest last). Omit for the whole buffer (cap enforced by ring-buffer size, 500). |
 
+The extension behind this tool also accepts `since` and `type` and answers a `cursor`; the tool
+descriptor does not declare them. See [Cursor and filters](cursor-and-filters.md).
+
 ### Output Shape
 
 ```json
 {
-  "records": [
+  "events": [
     {
       "eventType": "MonitorChecked",
       "payload": {
@@ -279,18 +298,24 @@ invalidation, broadcast echoes, model lifecycle transitions) without adding `pri
         "status": "up"
       },
       "time": "2026-05-20T14:34:00.001Z",
-      "listenerCount": 3
+      "listenerCount": 3,
+      "atUs": 81234567,
+      "redacted": false
     }
-  ]
+  ],
+  "cursor": 81234567
 }
 ```
 
 | Field | Type | Always present | Description |
 |---|---|---|---|
 | `eventType` | string | yes | Runtime class name of the dispatched event |
-| `payload` | object | yes | JSON snapshot of the event payload |
+| `payload` | object | yes | JSON snapshot of the event payload. A value `jsonEncode` cannot write is stored as its `toString()` |
 | `time` | string | yes | ISO 8601 UTC timestamp |
 | `listenerCount` | integer | no | Number of listeners notified at dispatch time, when available |
+| `atUs` | integer | yes | Monotonic microseconds from `FlutterTimeline.now` |
+| `redacted` | boolean | yes | True when `TelescopeRedaction.redactor` ran over the record before it was buffered |
+| `cursor` | integer or null | yes (envelope) | Largest `atUs` returned, else the `since` given, else null |
 
 ### Example Invocations
 
@@ -668,6 +693,8 @@ telescope_tail limit=50
 
 ## Related
 
+- [Cursor and filters](cursor-and-filters.md): `since`, `type`, `logger` and `cursor` on the console and
+  events extensions.
 - [Overview](overview.md): how the 10 tools surface through `TelescopeArtisanProvider` and route
   through the VM Service.
 - [Setup guide](setup.md): install telescope, register `TelescopeArtisanProvider`, and connect

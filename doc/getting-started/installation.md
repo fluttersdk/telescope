@@ -93,8 +93,11 @@ dart pub get
 
 ### 2. Wire TelescopePlugin in lib/main.dart
 
-Install Telescope before `runApp`, wrapped in `kDebugMode`. When using the Magic framework,
-place the call before `Magic.init()` so the Http facade is wired before
+Install Telescope before `runApp`, wrapped in a mode guard at the call site. `telescope:install`
+writes `kDebugMode`; the snippets below use `!kReleaseMode`, which also keeps telescope in profile
+builds (what a performance measurement needs, and what `magic_devtools` documents). Both tree-shake
+release builds; see [Call-site guard](../watchers/index.md#call-site-guard). When using the Magic
+framework, place the call before `Magic.init()` so the Http facade is wired before
 MagicTelescopeIntegration runs:
 
 ```dart
@@ -105,7 +108,7 @@ import 'package:magic_devtools/telescope.dart'; // magic_devtools dev_dependency
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (kDebugMode) {
+  if (!kReleaseMode) {
     // 1. Install Telescope core (LogWatcher auto-installs, VM extensions register).
     TelescopePlugin.install();
 
@@ -118,7 +121,7 @@ void main() async {
   //    is wired before MagicTelescopeIntegration tries to wrap it.
   await Magic.init(configFactories: [...]);
 
-  if (kDebugMode) {
+  if (!kReleaseMode) {
     // 4. Magic-specific adapters resolve framework internals from the IoC container;
     //    they must run after Magic.init(). MagicTelescopeIntegration ships in
     //    magic_devtools; add it to dev_dependencies alongside fluttersdk_telescope.
@@ -133,7 +136,7 @@ For vanilla Flutter (no Magic stack), omit `Magic.init()` and the
 `MagicTelescopeIntegration.install()` call. Wire `DioHttpAdapter` instead if you use Dio:
 
 ```dart
-if (kDebugMode) {
+if (!kReleaseMode) {
   TelescopePlugin.install();
   TelescopePlugin.registerHttpAdapter(DioHttpAdapter(dio));
   TelescopePlugin.registerWatcher(ExceptionWatcher());
@@ -180,7 +183,7 @@ Expected output on a running app shows the most recent log records from the ring
 If you see `Error: no running app found`, the artisan state file is missing: run
 `./bin/fsa start` first, then retry `telescope:tail`.
 
-To confirm all 10 CLI commands are registered, list the artisan command catalog:
+To confirm all 11 CLI commands are registered, list the artisan command catalog:
 
 ```bash
 ./bin/fsa list

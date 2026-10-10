@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart' show FlutterTimeline;
 
+import '../telescope_redaction.dart';
+
 /// An immutable app event record captured by an event watcher
 /// (e.g. MagicEventWatcher shipped in the `magic` package).
 class EventRecord {
@@ -36,6 +38,13 @@ class EventRecord {
   /// site does not link at all.
   final String? linkedBy;
 
+  /// True when [TelescopeRedaction.redactor] ran over this record before it
+  /// was buffered: only the store's redaction pass sets it, so a record a
+  /// caller constructs is always false. A record made while no redactor was
+  /// registered is false too, and a consumer that persists records (a file
+  /// sink) writes only the true ones.
+  bool get redacted => TelescopeRedaction.isRedacted(this);
+
   Map<String, dynamic> toJson() => {
         'eventType': eventType,
         'payload': payload,
@@ -44,5 +53,6 @@ class EventRecord {
         'atUs': atUs,
         if (interactionId != null) 'interactionId': interactionId,
         if (linkedBy != null) 'linkedBy': linkedBy,
+        'redacted': redacted,
       };
 }

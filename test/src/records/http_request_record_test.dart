@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluttersdk_telescope/src/records/http_request_record.dart';
+import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 
 void main() {
   group('HttpRequestRecord', () {
@@ -80,7 +81,47 @@ void main() {
           'isError': false,
           'timestamp': timestamp.toIso8601String(),
           'atUs': 999,
+          'redacted': false,
         }),
+      );
+    });
+
+    test('redacted is true only on the copy a redactor produced', () {
+      addTearDown(TelescopeRedaction.resetForTesting);
+      final plain = HttpRequestRecord(
+        url: 'https://api.uptizm.com/monitors',
+        method: 'GET',
+        statusCode: 200,
+        durationMs: 1,
+        isError: false,
+        timestamp: timestamp,
+      );
+      TelescopeRedaction.redactor = (String s) => s;
+      final masked = TelescopeRedaction.redactHttpRecord(plain)!;
+
+      expect(plain.redacted, isFalse);
+      expect(masked.redacted, isTrue);
+      expect(masked.toJson()['redacted'], isTrue);
+      // A copy carries a caller's new body, which no redactor saw.
+      expect(masked.copyWith(requestBody: 'b').redacted, isFalse);
+    });
+
+    test('a caller cannot construct a record flagged redacted', () {
+      expect(
+        () => Function.apply(
+          HttpRequestRecord.new,
+          const <Object?>[],
+          <Symbol, Object?>{
+            #url: 'https://api.uptizm.com/monitors',
+            #method: 'GET',
+            #statusCode: 200,
+            #durationMs: 1,
+            #isError: false,
+            #timestamp: timestamp,
+            #redacted: true,
+          },
+        ),
+        throwsNoSuchMethodError,
       );
     });
 

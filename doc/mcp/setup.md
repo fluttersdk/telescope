@@ -1,6 +1,6 @@
 # Telescope MCP Setup
 
-`fluttersdk_telescope` extends the artisan MCP server with 9 runtime-inspection tools
+`fluttersdk_telescope` extends the artisan MCP server with 10 runtime-inspection tools
 (`telescope_*`). This page covers everything needed to make those tools appear in Claude Code,
 Cursor, or any other MCP-compatible client.
 
@@ -25,7 +25,7 @@ Run `dart pub get` after editing.
 
 ### Step 1a: bootstrap with `telescope:install` (optional but recommended)
 
-If you only want the MCP tools, jump to Step 2. If you also want the 10 CLI commands wired
+If you only want the MCP tools, jump to Step 2. If you also want the 11 CLI commands wired
 to the artisan dispatcher, run the one-shot bootstrap now; it scaffolds `bin/dispatcher.dart`,
 registers the plugin, and patches `lib/main.dart` in one go:
 
@@ -39,8 +39,10 @@ After install, the consumer's fast-cli is available at `./bin/fsa` (native AOT, 
 
 ## Step 2: Install the Flutter-side plugin
 
-Inside `lib/main.dart`, install `TelescopePlugin` before `runApp`, gated on `kDebugMode` so
-the entire subsystem tree-shakes out of release builds. When using the Magic framework, place
+Inside `lib/main.dart`, install `TelescopePlugin` before `runApp`, gated at the call site so the
+entire subsystem tree-shakes out of release builds. `telescope:install` writes `kDebugMode`; the
+snippet below uses `!kReleaseMode`, which also keeps telescope in profile builds (see
+[Call-site guard](../watchers/index.md#call-site-guard)). When using the Magic framework, place
 the call before `Magic.init()` so the Http facade is wired in time:
 
 ```dart
@@ -49,11 +51,11 @@ import 'package:fluttersdk_telescope/telescope.dart';
 import 'package:magic_devtools/telescope.dart'; // magic_devtools dev_dependency (Magic-stack apps only)
 
 Future<void> main() async {
-  if (kDebugMode) {
+  if (!kReleaseMode) {
     TelescopePlugin.install();
   }
   await Magic.init(...);
-  if (kDebugMode) {
+  if (!kReleaseMode) {
     // Optional: when using the Magic framework, register its adapters and watchers.
     // Call MagicTelescopeIntegration.install() after Magic.init(). Ships in the
     // magic_devtools dev_dependency (import 'package:magic_devtools/telescope.dart').
@@ -202,6 +204,6 @@ for the full three-layer precedence rules (file, env vars, CLI flags).
 
 - [artisan MCP setup](https://fluttersdk.com/artisan/mcp/setup): full client matrix (Cursor, Claude
   Desktop, VS Code, Windsurf, JetBrains, Cline, OpenCode, Gemini CLI).
-- [Overview](overview.md): how the 9 tools surface through `TelescopeArtisanProvider` and route
+- [Overview](overview.md): how the 10 tools surface through `TelescopeArtisanProvider` and route
   through the VM Service.
 - [Tool reference](tool-reference.md): per-tool input schema, output shape, and example invocations.
