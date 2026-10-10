@@ -4,7 +4,7 @@
 
 - [What Telescope Contributes](#what-telescope-contributes)
 - [Substrate Tools vs Plugin Tools](#substrate-vs-plugin)
-- [How the 9 Tools Surface](#how-tools-surface)
+- [How the 10 Tools Surface](#how-tools-surface)
 - [VM Service Extension Routing](#vm-service-routing)
 - [Architecture Diagram](#architecture-diagram)
 - [Related](#related)
@@ -16,12 +16,13 @@
 ## What Telescope Contributes
 
 `fluttersdk_telescope` is a plugin for `fluttersdk_artisan`. It contributes **10 MCP tools** via
-`TelescopeArtisanProvider.mcpTools()` and **10 CLI commands** via `TelescopeArtisanProvider.commands()`.
+`TelescopeArtisanProvider.mcpTools()` and **11 CLI commands** via `TelescopeArtisanProvider.commands()`.
 
 The 10 MCP tools give an LLM agent read-only access to ring buffers that telescope maintains inside the
 running Flutter app. Each tool reads one buffer type: HTTP traffic, log lines, uncaught exceptions,
-in-app events, Gate authorization checks, `debugPrint` output, database queries, and cache operations.
-A tenth tool (`telescope_clear`) wipes all buffers at once as a "set zero" before a repro.
+in-app events, Gate authorization checks, `debugPrint` output, database queries, cache operations, and
+per-frame performance. A tenth tool (`telescope_clear`) wipes all buffers at once as a "set zero" before
+a repro.
 
 The tools share a single design rule: **no side effects on the running app**. Reading a buffer is
 non-destructive; only `telescope_clear` mutates state, and that mutation is intentional.
@@ -51,11 +52,11 @@ is `fluttersdk_telescope`, which is the key used in `.artisan/mcp.json` package 
 
 <a name="how-tools-surface"></a>
 
-## How the 9 Tools Surface
+## How the 10 Tools Surface
 
 The call chain from Claude Code to the Telescope ring buffer:
 
-1. `TelescopeArtisanProvider.mcpTools()` returns a `List<McpToolDescriptor>` with the 9 descriptors.
+1. `TelescopeArtisanProvider.mcpTools()` returns a `List<McpToolDescriptor>` with the 10 descriptors.
 2. `McpServer.initialize()` collects descriptors from every registered provider and sends the full
    catalog to the MCP client (Claude Code) in the `initialize` response.
 3. The agent invokes a tool by name (e.g. `telescope_tail`) with optional parameters.
@@ -87,8 +88,15 @@ Each MCP tool maps to exactly one VM Service extension:
 | `telescope_dumps` | `ext.telescope.dumps` |
 | `telescope_queries` | `ext.telescope.queries` |
 | `telescope_caches` | `ext.telescope.caches` |
+| `telescope_frames` | `ext.telescope.frames` |
 | `telescope_clear` | `ext.telescope.clear` |
 
+Telescope registers 14 `ext.telescope.*` extensions; four have no MCP tool. `ext.telescope.pause` and
+`ext.telescope.resume` are V1.x backlog. `ext.telescope.files` and `ext.telescope.file` read the timeline
+files of a running [file sink](../getting-started/file-sink.md) and are reached through the
+`telescope:files` CLI command. The `since`, `type`, `logger` and `cursor` parameters of
+`ext.telescope.console` and `ext.telescope.events` are likewise CLI and extension surface, see
+[Cursor and filters](cursor-and-filters.md).
 Every extension is registered via `registerExtensionIdempotent` (from `fluttersdk_artisan`) so that
 Flutter hot restarts do not throw `ArgumentError` on duplicate registration. `VmServiceClient` inside
 artisan lazy-reconnects on every dispatch call, so `artisan_start` followed immediately by a
@@ -130,7 +138,8 @@ artisan lazy-reconnects on every dispatch call, so `artisan_start` followed imme
           |        |          |         |          |
        console  requests  exceptions  events    gates
           |        |          |         |          |
-       dumps   queries    caches
+       dumps   queries    caches    frames    (+ files / file
+                                              when a file sink runs)
 ```
 
 **Flow summary:**
@@ -152,7 +161,9 @@ artisan lazy-reconnects on every dispatch call, so `artisan_start` followed imme
 
 - [artisan MCP overview](https://fluttersdk.com/artisan/mcp/overview): full substrate tool catalog,
   state file contract, and artisan's own architecture diagram.
-- [Setup guide](setup.md): how to wire `TelescopeArtisanProvider` and enable the 9 tools in Claude
+- [Setup guide](setup.md): how to wire `TelescopeArtisanProvider` and enable the 10 tools in Claude
   Code or Cursor.
+- [Cursor and filters](cursor-and-filters.md): `since`, `type`, `logger` and `cursor` on the console and
+  events extensions, and the `--follow` CLI loop.
 - [Tool reference](tool-reference.md): per-tool input schema, output shape, example invocations, and
   the VM Service extension each tool routes through.

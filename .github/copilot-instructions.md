@@ -8,12 +8,13 @@ Guidance for Claude Code working in the `fluttersdk_telescope` repo. Path-scoped
 ## Stack
 
 Flutter SDK package (Dart 3.4+, Flutter 3.22+). Plugin of `fluttersdk_artisan ^0.0.19`: contributes
-`TelescopeArtisanProvider` with 10 CLI commands plus 10 MCP tools backed by 12 `ext.telescope.*` VM Service
+`TelescopeArtisanProvider` with 11 CLI commands plus 10 MCP tools backed by 14 `ext.telescope.*` VM Service
 extensions.
 
 Production deps are hosted only (no `pubspec_overrides.yaml`): `fluttersdk_artisan ^0.0.19`, `logging ^1.2.0`,
-`meta ^1.16.0`. Dev deps: `flutter_test`, `flutter_lints ^5.0.0`. Debug-only at the consumer call site: the
-consumer wraps `TelescopePlugin.install()` in `if (kDebugMode)` so release builds tree-shake the subsystem.
+`meta ^1.16.0`. Dev deps: `flutter_test`, `flutter_lints ^5.0.0`. Development-only at the consumer call site: the
+consumer wraps `TelescopePlugin.install()` in a guard so release builds tree-shake the subsystem. `telescope:install`
+writes `if (kDebugMode)`; `!kReleaseMode` (what `magic_devtools` uses) also keeps profile builds. Telescope installs no guard itself.
 
 Two CLI surfaces. `bin/fluttersdk_telescope.dart` is the Flutter-free wrapper, canonical install bootstrap:
 `dart run fluttersdk_telescope telescope:install` works from a fresh consumer. `install.yaml` at the package
@@ -25,8 +26,8 @@ the consumer's `./bin/fsa` (native AOT, ~110ms warm) is the recommended entry po
 
 | Command | When |
 |---|---|
-| `flutter test --exclude-tags=integration --timeout=30s` | Default runner (CI gate). Baseline 249 green after the 0.0.1 release-prep + magic-dev-dep drop. |
-| `flutter test --coverage --exclude-tags=integration` | Emits `coverage/lcov.info` directly. Coverage floor 80%; current 95.60%. |
+| `flutter test --exclude-tags=integration --timeout=30s` | Default runner (CI gate). Baseline 497 green on `feature/host-timeline`. |
+| `flutter test --coverage --exclude-tags=integration` | Emits `coverage/lcov.info` directly. Coverage floor 80%; current 97.79%. |
 | `dart format lib/ test/ bin/` | Must produce zero diff. |
 | `dart analyze lib/ test/ bin/` | Must report zero issues across all three roots. |
 | `flutter pub get` | Resolve deps (hosted-only). |
@@ -55,16 +56,19 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 
 | Path | Purpose |
 |---|---|
-| `watchers/` | `TelescopeWatcher` contract + `LogWatcher`, `ExceptionWatcher`, `DumpWatcher`. See `.claude/rules/watchers.md`. |
+| `watchers/` | `TelescopeWatcher` contract + `LogWatcher`, `ExceptionWatcher`, `DumpWatcher`, `FramePerfWatcher`. See `.claude/rules/watchers.md`. |
 | `adapters/` | `TelescopeHttpAdapter` contract + `DioHttpAdapter`. |
-| `records/` | 9 immutable record types: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord`. |
-| `extensions/` | 11 `ext.telescope.*` VM Service handlers + `registerAllTelescopeExtensions()` aggregator. |
-| `commands/` | 6 `TelescopeXCommand` (install, tail, requests, queries, caches, clear). |
-| `telescope_store.dart` | 9-buffer ring store (singleton). `Queue<T>` plus broadcast `StreamController<T>` per buffer. Default capacity 500. |
+| `records/` | 10 immutable record types: `HttpRequestRecord`, `LogRecordEntry`, `ExceptionRecord`, `MagicModelRecord`, `MagicCacheRecord`, `EventRecord`, `GateRecord`, `DumpRecord`, `QueryRecord`, `FramePerfRecord`. |
+| `extensions/` | 14 `ext.telescope.*` VM Service handlers + `registerAllTelescopeExtensions()` aggregator. |
+| `commands/` | 11 `TelescopeXCommand` (install, tail, requests, queries, caches, events, gates, dumps, frames, clear, files). |
+| `telescope_store.dart` | 10-buffer ring store (singleton). `Queue<T>` plus broadcast `StreamController<T>` per buffer. Default capacity 500, except frame perf at 3600; `setCapacity(int, {TelescopeKind? kind})` caps all buffers or one. |
+| `telescope_redaction.dart` | HTTP credential lists plus the host `redactor` hook, applied at insert to log, event, exception and HTTP records; per-record `redactXRecord` entry points return null for a dropped record. |
+| `telescope_file_sink.dart` | `TelescopeFileSink`: rotating JSONL timeline of redacted log, event and exception records; `files()` / `read()` behind `ext.telescope.files` / `.file`. |
+| `cursor_follow.dart` | `followCursor`, the `--follow` loop; pure Dart, exported from `lib/cli.dart`. |
 | `telescope_plugin.dart` | `TelescopePlugin.install()` + `registerHttpAdapter()` + `registerWatcher()` entry points. |
 | `telescope_artisan_provider.dart` | `TelescopeArtisanProvider extends ArtisanServiceProvider`. |
 | `bin/fluttersdk_telescope.dart` | Flutter-free CLI wrapper; loads `TelescopeArtisanProvider` into `runArtisan` directly. |
-| `lib/cli.dart` | Codegen barrel; `FluttersdkTelescopeArtisanProvider` typedef for consumer auto-discovery. |
+| `lib/cli.dart` | Codegen barrel; `FluttersdkTelescopeArtisanProvider` typedef for consumer auto-discovery, plus `followCursor`. |
 | `install.yaml` | V1 plugin manifest (post-install bootstrap message + `executables:` anchor). |
 
 ### Three public contracts (FROZEN)
@@ -75,16 +79,17 @@ Single barrel: `lib/telescope.dart` re-exports the full public API. Subsystem la
 
 ### VM Service surface
 
-11 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.clear`, `.pause`, `.resume`. Every registration goes through `registerExtensionIdempotent` (from `fluttersdk_artisan`) for hot-restart safety. Handler signature: `Future<ServiceExtensionResponse> Function(String method, Map<String, String> params)`. Parse integers via `int.tryParse(params['key'] ?? '')`. Return `.result(jsonEncode(payload))` or `.error(kInvalidParams, msg)`.
+14 extensions: `ext.telescope.requests`, `.console`, `.exceptions`, `.events`, `.gates`, `.dumps`, `.queries`, `.caches`, `.frames`, `.clear`, `.pause`, `.resume`, `.files`, `.file`. `.console` and `.events` take `since` and answer a `cursor` (with `since`, `limit` keeps the OLDEST N); `.events` takes `type`, `.console` takes `logger`; a non-integer `since` is `invalidParams`. `.files` / `.file` read the running `TelescopeFileSink` and answer `{error}` when none runs. Every registration goes through `registerExtensionIdempotent` (from `fluttersdk_artisan`) for hot-restart safety. Handler signature: `Future<ServiceExtensionResponse> Function(String method, Map<String, String> params)`. Parse integers via `int.tryParse(params['key'] ?? '')`. Return `.result(jsonEncode(payload))` or `.error(kInvalidParams, msg)`.
 
 ## Off-limits
 
 - The three public contract signatures above are frozen. Magic-side glue depends on them; any change needs a coordinated bump across both repos.
 - `TelescopePlugin.install()` / `.registerHttpAdapter()` / `.registerWatcher()` signatures are frozen for the same reason.
-- `TelescopeStore` public methods (`recordX` / `recentX` / `onXRecord` for all 9 buffers, plus `clear` / `pause` / `resume`) are frozen; magic-side calls them directly.
+- `TelescopeStore` public methods (`recordX` / `recentX` / `onXRecord` for all 10 buffers, plus `clear` / `clearFramePerf` / `pause` / `resume`) are frozen; magic-side calls them directly.
 - `install.yaml` at the package root is load-bearing for `plugin:install fluttersdk_telescope`. Do not delete; the V1 manifest carries the post-install bootstrap message and the `executables:` mapping anchor.
 - No new production dependencies beyond `fluttersdk_artisan`, `logging`, `meta`. The vanilla `example/` app may add its own demo deps (Dio, `package:logging`).
-- `DumpWatcher` must not capture in release builds. The `kDebugMode` guard at install time is load-bearing.
+- `DumpWatcher` must not capture in release builds. Its own internal `kDebugMode` guard (unless `allowInRelease`) is load-bearing.
+- `TelescopeRedaction.redactor` semantics are frozen: it runs at insert over log, event, exception and HTTP records, a throw drops the record, and `redacted` is read-only, set only by the store's redaction pass. Never add a `redacted` constructor argument; `TelescopeFileSink` writes only records where it is true.
 
 ## Style
 

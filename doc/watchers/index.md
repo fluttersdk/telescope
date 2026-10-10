@@ -5,20 +5,31 @@ Telescope ships 10 watcher units across three categories. Each unit implements o
 traffic capture). All units feed the matching ring buffer inside `TelescopeStore` and expose their
 data via a VM Service extension method.
 
-## kDebugMode gating
+<a name="call-site-guard"></a>
+## Call-site guard
 
-The consumer is responsible for gating the entire telescope install behind `kDebugMode`:
+`TelescopePlugin.install()` installs no mode guard of its own. The consumer gates the entire telescope
+install at the call site, and `kDebugMode` and `!kReleaseMode` both tree-shake it from release builds:
 
 ```dart
-if (kDebugMode) {
+if (!kReleaseMode) {
   TelescopePlugin.install();
   // register additional watchers here
 }
 ```
 
-This single gate tree-shakes the entire subsystem in release builds (dart2js for web, dart2native
-for mobile/desktop AOT). Individual watchers do not need their own gate except `DumpWatcher`, which
-has an additional internal guard (see below).
+- `kDebugMode` is what `telescope:install` writes into `lib/main.dart`. Debug builds carry telescope;
+  profile and release builds do not.
+- `!kReleaseMode` also keeps telescope in profile builds. Use it when you measure performance, since a
+  frame measurement needs a profile build, since debug frame timings do not describe a shipped app. It is the
+  guard `magic_devtools` uses and documents. Keep the guard at the call site, never inside a helper, or
+  the call stays live in release and the tree-shake is lost.
+
+The snippets on this page use `kDebugMode`; either guard works in each of them. This single gate
+tree-shakes the entire subsystem in release builds (dart2js for web, dart2native for mobile/desktop
+AOT). Individual watchers do not need their own gate except `DumpWatcher`, which has an additional
+internal `kDebugMode` guard (see below) and so captures nothing in a profile build unless
+`allowInRelease` is set.
 
 ## Chain-preserve pattern
 
@@ -63,7 +74,8 @@ Magic or any other application framework.
 | Opt-out | Call `TelescopePlugin.install()` then remove it by not calling `LogWatcher().install()` directly; or skip the default auto-install path and register manually |
 
 Subscribes to `Logger.root.onRecord` from `package:logging`. Every log record that flows through
-the root logger (at any level) is converted to a `LogRecordEntry` and pushed to the store.
+the root logger (at any level) is converted to a `LogRecordEntry` (stamped with a monotonic `atUs`) and
+pushed to the store, through `TelescopeRedaction.redactor` when the host set one.
 
 `hierarchicalLoggingEnabled` is set to `true` during install so named child loggers (`Logger('http')`,
 `Logger('auth')`, etc.) funnel through root. Install is idempotent: a second call when the
@@ -251,6 +263,10 @@ final String? safeText = TelescopeRedaction.redactBody(
 ```
 
 Both return a masked copy and never mutate their input.
+
+Beyond these name lists, a host can set `TelescopeRedaction.redactor` to run its own text redactor over
+every field of the log, event, exception and HTTP records, after the key masking above; a redactor that
+throws drops the record. See [Redaction](../getting-started/redaction.md).
 
 ### DioHttpAdapter
 
