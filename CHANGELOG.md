@@ -8,6 +8,10 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+---
+
+## [0.0.11] - 2026-10-10
+
 ### Added
 
 - **`TelescopeRedaction.redactor`, a host-set text redactor applied to every log, event, exception and HTTP record at insert.** `recordLog`, `recordEvent`, `recordException` and `recordHttp` (after its key masking) run it over every String field, every String and map key inside an event payload's nested Maps and Lists, and the stack text, before the record enters its queue or its stream; a record the redactor throws on is dropped, neither buffered nor emitted. Each of the four records gains a `redacted` getter (true when a redactor ran), serialized in `toJson`. Only the store's redaction pass sets it: the constructors take no `redacted` argument and `HttpRequestRecord.copyWith` returns an unredacted copy, so no caller can build a record a persisting consumer would take for masked. A record buffered while no redactor was registered stays false, so a consumer that persists records can write only the redacted ones. A subtree nested past 64 levels is masked whole. `redactLogRecord`, `redactExceptionRecord` and `redactEventRecord` join `redactHttpRecord` as the per-record entry points, each returning null for a dropped record, and `resetForTesting()` unregisters the redactor. (`lib/src/telescope_redaction.dart`, `lib/src/telescope_store.dart`, `lib/src/records/`)
@@ -24,12 +28,13 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 - **Event payloads are JSON-safe at record time.** `recordEvent` stores a value `jsonEncode` cannot write (a `DateTime`, a `Duration`, any object) as its `toString()`, and a non-String map key likewise, so one bad payload can no longer fail the whole `ext.telescope.events` response. A payload that is already safe keeps its identity. (`lib/src/telescope_redaction.dart`)
 - **`toJson` of the log, event, exception and HTTP records always carries `redacted`.** (`lib/src/records/`)
-- **`TelescopeRedaction.redactHttpRecord` returns `HttpRequestRecord?`.** It returns null, the record dropped, when the registered redactor throws; a caller outside the store adds a null check. (`lib/src/telescope_redaction.dart`)
+- **BREAKING: `TelescopeRedaction.redactHttpRecord` returns `HttpRequestRecord?`.** It was `HttpRequestRecord`; it now returns null, the record dropped, when the registered redactor throws, so a caller outside the store adds a null check. (`lib/src/telescope_redaction.dart`)
 
 ### Fixed
 
 - **An unknown `minLevel` matched every log line.** `recentLogs(minLevel: 'bogus')` now returns an empty list instead of the whole buffer. (`lib/src/telescope_store.dart`)
 - **A negative `limit` threw.** Every `recentX(limit:)` returns an empty list for a zero or negative limit instead of a `RangeError`. (`lib/src/telescope_store.dart`)
+- **A payload `jsonEncode` cannot write failed the whole `ext.telescope.events` response.** The payload is now made JSON-safe when the event is recorded (see Changed). (`lib/src/telescope_redaction.dart`)
 
 ---
 
