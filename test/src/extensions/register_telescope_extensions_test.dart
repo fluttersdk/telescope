@@ -913,6 +913,46 @@ void main() {
       expect(events.single['eventType'], equals('player.b'));
     });
 
+    test('since with a limit returns the oldest records after it', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final decoded = await decodeEvents({'since': '0', 'limit': '50'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.map((e) => e['atUs']), equals(_range(1, 50)));
+      expect(decoded['cursor'], equals(50));
+    });
+
+    test('paging by the returned cursor reads every record, no gap', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final seen = <dynamic>[];
+      String since = '0';
+      for (var page = 0; page < 3; page++) {
+        final decoded = await decodeEvents({'since': since, 'limit': '50'});
+        seen.addAll((decoded['events'] as List<dynamic>).map((e) => e['atUs']));
+        since = '${decoded['cursor']}';
+      }
+
+      expect(seen, equals(_range(1, 120)));
+    });
+
+    test('without since the limit keeps the newest records', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final decoded = await decodeEvents({'limit': '50'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.map((e) => e['atUs']), equals(_range(71, 120)));
+      expect(decoded['cursor'], equals(120));
+    });
+
     test('a since that is not an integer is refused, not ignored', () async {
       TelescopeStore.recordEvent(eventAt(100));
 
@@ -974,6 +1014,48 @@ void main() {
 
       expect(decoded['messages'], isEmpty);
       expect(decoded['cursor'], equals(100));
+    });
+
+    test('since with a limit returns the oldest records after it', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final decoded = await decodeConsole({'since': '0', 'limit': '50'});
+      final messages = decoded['messages'] as List<dynamic>;
+
+      expect(messages.map((m) => m['atUs']), equals(_range(1, 50)));
+      expect(decoded['cursor'], equals(50));
+    });
+
+    test('paging by the returned cursor reads every record, no gap', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final seen = <dynamic>[];
+      String since = '0';
+      for (var page = 0; page < 3; page++) {
+        final decoded = await decodeConsole({'since': since, 'limit': '50'});
+        seen.addAll(
+          (decoded['messages'] as List<dynamic>).map((m) => m['atUs']),
+        );
+        since = '${decoded['cursor']}';
+      }
+
+      expect(seen, equals(_range(1, 120)));
+    });
+
+    test('without since the limit keeps the newest records', () async {
+      for (var atUs = 1; atUs <= 120; atUs++) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final decoded = await decodeConsole({'limit': '50'});
+      final messages = decoded['messages'] as List<dynamic>;
+
+      expect(messages.map((m) => m['atUs']), equals(_range(71, 120)));
+      expect(decoded['cursor'], equals(120));
     });
 
     test('a since that is not an integer is refused, not ignored', () async {
@@ -1097,3 +1179,7 @@ void main() {
     });
   });
 }
+
+/// The integers from [first] to [last], both inclusive.
+List<int> _range(int first, int last) =>
+    <int>[for (var n = first; n <= last; n++) n];

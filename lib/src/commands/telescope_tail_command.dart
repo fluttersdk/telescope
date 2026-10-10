@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../cursor_follow.dart';
+
 /// `artisan telescope:tail` ; print recent log records from the running app.
 ///
 /// `--since` and `--logger` filter on the app side, `--json` prints one JSON
@@ -67,34 +69,39 @@ class TelescopeTailCommand extends ArtisanCommand {
     final logger = ctx.input.option('logger');
     if (logger != null) params['logger'] = logger;
 
-    for (var polls = 1;; polls++) {
-      final result = await ctx.callExtension<Map<String, dynamic>>(
-        'ext.telescope.console',
-        params,
-      );
-      final messages = ((result['messages'] as List?) ?? <dynamic>[])
-          .cast<Map<String, dynamic>>();
-
-      if (messages.isEmpty && !json && !follow) {
-        ctx.output.warning('No log records.');
-      }
-      for (final r in messages) {
-        ctx.output.writeln(
-          json
-              ? jsonEncode(r)
-              : '${r['time']} [${r['level']}] ${r['loggerName']}: ${r['message']}',
+    var polls = 0;
+    await followCursor(
+      interval: _pollInterval,
+      delay: _delay,
+      shouldStop: () => !follow || _shouldStop(polls),
+      read: (int? since) async {
+        polls++;
+        if (since != null) params['since'] = since.toString();
+        final result = await ctx.callExtension<Map<String, dynamic>>(
+          'ext.telescope.console',
+          params,
         );
-      }
+        final messages = ((result['messages'] as List?) ?? <dynamic>[])
+            .cast<Map<String, dynamic>>();
 
-      if (!follow || _shouldStop(polls)) return 0;
+        if (messages.isEmpty && !json && !follow) {
+          ctx.output.warning('No log records.');
+        }
+        for (final r in messages) {
+          ctx.output.writeln(
+            json
+                ? jsonEncode(r)
+                : '${r['time']} [${r['level']}] ${r['loggerName']}: ${r['message']}',
+          );
+        }
 
-      // The cursor is the last atUs seen, so the next read returns only newer
-      // records and needs no limit.
-      final cursor = result['cursor'];
-      if (cursor != null) params['since'] = cursor.toString();
-      params.remove('limit');
-      await _delay(_pollInterval);
-    }
+        // The cursor is the last atUs seen, so the next read returns only
+        // newer records and needs no limit.
+        if (follow) params.remove('limit');
+        return (result['cursor'] as num?)?.toInt();
+      },
+    );
+    return 0;
   }
 }
 

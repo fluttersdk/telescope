@@ -115,6 +115,27 @@ void main() {
         expect(first.pendingLines, 0);
         expect(second.pendingLines, 1);
       });
+
+      test('a failed start leaves no current sink and no subscription',
+          () async {
+        TelescopeRedaction.redactor = _identity;
+        // A file where the directory should be: creating it throws.
+        File(directory).writeAsStringSync('');
+
+        await expectLater(
+          TelescopeFileSink.start(directory: directory),
+          throwsA(isA<FileSystemException>()),
+        );
+        expect(TelescopeFileSink.current, isNull);
+
+        // A sink still listening would batch these and fail its flush with
+        // an uncaught error, which fails this test.
+        for (int i = 0; i < 64; i++) {
+          _event(i);
+        }
+        await _delivered();
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+      });
     });
 
     group('fail closed', () {
@@ -224,6 +245,32 @@ void main() {
 
         await Future<void>.delayed(const Duration(milliseconds: 800));
         expect(timelineFiles().single.readAsLinesSync(), hasLength(1));
+      });
+
+      test('a failed batch write stops the sink without an uncaught error',
+          () async {
+        TelescopeRedaction.redactor = _identity;
+        final TelescopeFileSink sink = await TelescopeFileSink.start(
+          directory: directory,
+          maxFileBytes: 64,
+        );
+        // The next rotation opens a file in a directory that is gone.
+        Directory(directory).deleteSync(recursive: true);
+
+        for (int i = 0; i < 64; i++) {
+          _event(i);
+        }
+        await _delivered();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        expect(sink.writeFailures, 1);
+        expect(TelescopeFileSink.current, isNull);
+
+        _event(64);
+        await _delivered();
+        expect(sink.pendingLines, 0);
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        expect(sink.writeFailures, 1);
       });
 
       test('stop flushes buffered lines and ends the subscription', () async {
@@ -352,16 +399,68 @@ void main() {
         );
       });
 
-      test('refuses a file in the directory the sink did not write', () async {
+      test('refuses a file in the directory that is not a timeline', () async {
         File('$directory${Platform.pathSeparator}notes.txt')
             .writeAsStringSync('u:p@ss:w\n');
-        File(
-          '$directory${Platform.pathSeparator}'
-          'timeline-20200101T000000Z-1.jsonl',
-        ).writeAsStringSync('{"kind":"event"}\n');
 
         expect(await sink.read('notes.txt'), isNull);
-        expect(await sink.read('timeline-20200101T000000Z-1.jsonl'), isNull);
+        expect(await sink.read('../x'), isNull);
+      });
+
+      test('refuses a link named like a timeline file', () async {
+        final String secret = '${root.path}${Platform.pathSeparator}secret';
+        File(secret).writeAsStringSync('u:p@ss:w\n');
+        const String linked = 'timeline-20200102T000000Z-1.jsonl';
+        Link('$directory${Platform.pathSeparator}$linked').createSync(secret);
+
+        expect(await sink.read(linked), isNull);
+        expect(
+          (await sink.files()).map((Map<String, Object> f) => f['name']),
+          isNot(contains(linked)),
+        );
+      });
+
+      test('lists and reads the timeline of an earlier launch', () async {
+        const String earlier = 'timeline-20200101T000000Z-1.jsonl';
+        File('$directory${Platform.pathSeparator}$earlier')
+            .writeAsStringSync('{"kind":"event"}\n');
+
+        final List<Map<String, Object>> files = await sink.files();
+        expect(
+          files.map((Map<String, Object> f) => f['name']),
+          <String>[
+            name,
+            earlier,
+          ],
+        );
+        expect(files.last['bytes'], 17);
+
+        final Map<String, Object> page = (await sink.read(earlier))!;
+        expect(page['lines'], <String>['{"kind":"event"}']);
+        expect(page['next'], 17);
+      });
+
+      test('reads from an offset inside a multi-byte character', () async {
+        TelescopeStore.recordEvent(
+          EventRecord(
+            eventType: 'player.title',
+            payload: <String, dynamic>{
+              'title': 'Caf\u00e9',
+            },
+            time: DateTime.utc(2026),
+          ),
+        );
+        await _delivered();
+        await sink.flush();
+
+        final List<int> bytes = timelineFiles().single.readAsBytesSync();
+        final int inside = bytes.indexOf(0xC3) + 1;
+
+        final Map<String, Object> page =
+            (await sink.read(name, offset: inside))!;
+
+        expect(page['lines'], hasLength(1));
+        expect(page['next'], bytes.length);
       });
 
       test('refuses a negative offset or a non-positive maxBytes', () async {

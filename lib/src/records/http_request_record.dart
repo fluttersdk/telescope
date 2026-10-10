@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart' show FlutterTimeline;
 
+import '../telescope_redaction.dart';
+
 /// An immutable HTTP request/response record captured by a [TelescopeHttpAdapter].
 class HttpRequestRecord {
   HttpRequestRecord({
@@ -19,7 +21,6 @@ class HttpRequestRecord {
     int? atUs,
     this.interactionId,
     this.linkedBy,
-    this.redacted = false,
   }) : atUs = atUs ?? FlutterTimeline.now;
 
   final String url;
@@ -66,14 +67,16 @@ class HttpRequestRecord {
   final String? linkedBy;
 
   /// True when [TelescopeRedaction.redactor] ran over this record before it
-  /// was buffered. A record made while no redactor was registered is false,
-  /// and a consumer that persists records (a file sink) writes only the true
-  /// ones.
-  final bool redacted;
+  /// was buffered: only the store's redaction pass sets it, so a record a
+  /// caller constructs is always false. A record made while no redactor was
+  /// registered is false too, and a consumer that persists records (a file
+  /// sink) writes only the true ones.
+  bool get redacted => TelescopeRedaction.isRedacted(this);
 
   /// Copy with the capture payload replaced; every other field, [atUs]
   /// included, carries over so the copy keeps its place on the trace. The
-  /// copy keeps [redacted] too: masking a body does not mean a redactor ran.
+  /// copy is not [redacted]: the replaced payload is caller input no
+  /// redactor has seen.
   HttpRequestRecord copyWith({
     Map<String, String>? requestHeaders,
     String? requestBody,
@@ -96,7 +99,6 @@ class HttpRequestRecord {
         atUs: atUs,
         interactionId: interactionId,
         linkedBy: linkedBy,
-        redacted: redacted,
       );
 
   Map<String, dynamic> toJson() => {

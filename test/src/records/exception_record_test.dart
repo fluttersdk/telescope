@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluttersdk_telescope/src/records/exception_record.dart';
+import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 
 void main() {
   group('ExceptionRecord', () {
@@ -61,22 +62,35 @@ void main() {
       );
     });
 
-    test('redacted defaults to false and serializes when true', () {
+    test('redacted is true only on the copy a redactor produced', () {
+      addTearDown(TelescopeRedaction.resetForTesting);
       final plain = ExceptionRecord(
         exceptionType: 'StateError',
         message: 'm',
         time: time,
       );
-      final masked = ExceptionRecord(
-        exceptionType: 'StateError',
-        message: 'm',
-        time: time,
-        redacted: true,
-      );
+      TelescopeRedaction.redactor = (String s) => s;
+      final masked = TelescopeRedaction.redactExceptionRecord(plain)!;
 
       expect(plain.redacted, isFalse);
       expect(masked.redacted, isTrue);
       expect(masked.toJson()['redacted'], isTrue);
+    });
+
+    test('a caller cannot construct a record flagged redacted', () {
+      expect(
+        () => Function.apply(
+          ExceptionRecord.new,
+          const <Object?>[],
+          <Symbol, Object?>{
+            #exceptionType: 'StateError',
+            #message: 'm',
+            #time: time,
+            #redacted: true,
+          },
+        ),
+        throwsNoSuchMethodError,
+      );
     });
 
     test('toJson includes stackTrace and isolate when set', () {

@@ -25,9 +25,14 @@ import 'telescope_store.dart';
 /// while no `TelescopeRedaction.redactor` was registered) is never written,
 /// only counted in [droppedUnredacted].
 ///
-/// [files] and [read] expose only the files this sink wrote: a name is
-/// matched against that list before it is ever turned into a path, so a
-/// caller-supplied name cannot reach any other file.
+/// A batch write no caller awaits (the 64 line or 500 ms flush) that fails
+/// stops the sink rather than raise: the failure is counted in
+/// [writeFailures] and the sink is no longer [current].
+///
+/// [files] and [read] expose the timeline files in the directory, earlier
+/// launches included, and nothing else: a name is matched against that
+/// listing before it is ever turned into a path, so a caller-supplied name
+/// cannot reach any other file.
 final class TelescopeFileSink {
   TelescopeFileSink._({
     required Directory directory,
@@ -60,14 +65,16 @@ final class TelescopeFileSink {
       <StreamSubscription<Object>>[];
   final List<String> _pending = <String>[];
 
-  /// The files this sink created and has not pruned, oldest first. The last
-  /// one is open for writing.
+  /// The files this launch created and has not pruned, oldest first. The
+  /// last one is open for writing.
   final List<_TimelineFile> _files = <_TimelineFile>[];
 
   RandomAccessFile? _open;
   Timer? _timer;
+  bool _opened = false;
   bool _stopped = false;
   int _dropped = 0;
+  int _writeFailures = 0;
 
   /// Every disk operation runs on this chain, one after the other, so a
   /// write, a rotation and a read never interleave.
@@ -80,7 +87,8 @@ final class TelescopeFileSink {
   /// 1) caps one file; a single line larger than that still gets a file of
   /// its own. [maxFiles] (at least 1) caps the timeline files kept in
   /// [directory]. Throws a [FileSystemException] when [directory] cannot be
-  /// created or written.
+  /// created or written; the sink then neither listens nor becomes
+  /// [current].
   static Future<TelescopeFileSink> start({
     required String directory,
     int maxFileBytes = 1048576,
@@ -93,7 +101,8 @@ final class TelescopeFileSink {
     await _current?.stop();
 
     // 2. Subscribe before the first await on disk, so no record recorded
-    // while the directory is being created is missed.
+    // while the directory is being created is missed; those lines wait in
+    // the batch until the first file is open.
     final TelescopeFileSink sink = TelescopeFileSink._(
       directory: Directory(directory),
       maxFileBytes: maxFileBytes,
@@ -111,19 +120,33 @@ final class TelescopeFileSink {
         (ExceptionRecord r) => sink._accept('exception', r.redacted, r.toJson),
       ),
     ]);
-    _current = sink;
 
-    // 3. The first file exists from the start, so [files] is never empty.
-    await sink._serial(() async {
-      await sink._directory.create(recursive: true);
-      await sink._rotate();
-    });
+    // 3. The first file exists before the sink becomes current, so nothing
+    // writes without one; a sink that cannot open it stops listening.
+    try {
+      await sink._serial(() async {
+        await sink._directory.create(recursive: true);
+        await sink._rotate();
+      });
+    } on Object {
+      await sink._halt();
+      rethrow;
+    }
+
+    // 4. Hand the lines batched during startup to the usual schedule.
+    sink._opened = true;
+    _current = sink;
+    if (sink._pending.isNotEmpty) sink._scheduleFlush();
 
     return sink;
   }
 
   /// Records refused because their `redacted` flag was false.
   int get droppedUnredacted => _dropped;
+
+  /// Batch writes no caller awaited that failed; the first one stops the
+  /// sink.
+  int get writeFailures => _writeFailures;
 
   /// Lines accepted and not yet handed to the disk queue.
   @visibleForTesting
@@ -142,18 +165,22 @@ final class TelescopeFileSink {
     return _serial(() => _write(batch));
   }
 
-  /// The files this sink wrote and still keeps, newest first, each as
-  /// `{name, bytes}` with `bytes` the file's length after a [flush].
+  /// The timeline files in the directory, earlier launches included, newest
+  /// first, each as `{name, bytes}` with `bytes` the file's length after a
+  /// [flush].
   Future<List<Map<String, Object>>> files() async {
     await flush();
-    return _files.reversed
-        .map(
-          (_TimelineFile file) => <String, Object>{
-            'name': file.name,
-            'bytes': file.bytes,
-          },
-        )
-        .toList();
+
+    return _serial(() async {
+      final List<Map<String, Object>> listing = <Map<String, Object>>[];
+      for (final _TimelineEntry entry in await _timeline()) {
+        listing.add(<String, Object>{
+          'name': entry.name,
+          'bytes': await entry.file.length(),
+        });
+      }
+      return listing;
+    });
   }
 
   /// Read whole lines of the file called [name], from byte [offset], after a
@@ -166,8 +193,11 @@ final class TelescopeFileSink {
   /// equals [offset]. An [offset] that is not 0 or a previous `next` may
   /// start mid-line.
   ///
-  /// Returns null, a refusal, when [name] is not exactly the name of a file
-  /// this sink wrote and still keeps (a path, a `..` segment, or another
+  /// An [offset] inside a multi-byte character decodes the cut bytes as
+  /// U+FFFD rather than fail.
+  ///
+  /// Returns null, a refusal, when [name] is not exactly the name of a
+  /// timeline file [files] lists (a path, a `..` segment, a link, or another
   /// file in the directory are all refused), when [offset] is negative, or
   /// when [maxBytes] is not positive.
   Future<Map<String, Object>?> read(
@@ -179,15 +209,17 @@ final class TelescopeFileSink {
     await flush();
 
     return _serial(() async {
-      // The allowlist is the traversal guard: [name] is only compared, never
-      // joined into a path, and the file read is the one the sink opened.
-      final _TimelineFile? file = _find(name);
+      // The listing is the traversal guard: [name] is only compared, never
+      // joined into a path, and the file read is the entry the directory
+      // listing returned.
+      final File? file = await _find(name);
       if (file == null) return null;
 
       final Uint8List bytes = await _readLines(file, offset, maxBytes);
       final List<String> lines = bytes.isEmpty
           ? <String>[]
-          : (utf8.decode(bytes).split('\n')..removeLast());
+          : (utf8.decode(bytes, allowMalformed: true).split('\n')
+            ..removeLast());
 
       return <String, Object>{
         'lines': lines,
@@ -229,11 +261,52 @@ final class TelescopeFileSink {
         ...toJson(),
       }),
     );
+    if (_opened) _scheduleFlush();
+  }
+
+  void _scheduleFlush() {
     if (_pending.length >= _batchLines) {
-      unawaited(flush());
+      unawaited(_flushInBackground());
       return;
     }
-    _timer ??= Timer(_flushInterval, flush);
+    _timer ??= Timer(_flushInterval, () => unawaited(_flushInBackground()));
+  }
+
+  /// A flush no caller awaits. Its failure must not escape into the zone:
+  /// an exception watcher would record it, this sink would accept that
+  /// record, and the next flush would fail the same way. It is counted and
+  /// the sink stops instead.
+  Future<void> _flushInBackground() async {
+    try {
+      await flush();
+    } on Object {
+      _writeFailures++;
+      await _halt();
+    }
+  }
+
+  /// Stop without writing: stop listening, drop the batch and close the
+  /// file; the sink is no longer [current]. A no-op once stopped.
+  Future<void> _halt() async {
+    if (_stopped) return;
+    _stopped = true;
+    if (identical(_current, this)) _current = null;
+    _timer?.cancel();
+    _timer = null;
+    _pending.clear();
+
+    for (final StreamSubscription<Object> subscription in _subscriptions) {
+      await subscription.cancel();
+    }
+    await _serial(() async {
+      final RandomAccessFile? open = _open;
+      _open = null;
+      try {
+        await open?.close();
+      } on FileSystemException {
+        _writeFailures++;
+      }
+    });
   }
 
   /// Run [operation] after every operation queued before it. Its error goes
@@ -265,13 +338,23 @@ final class TelescopeFileSink {
 
   Future<void> _append(Uint8List bytes) async {
     if (bytes.isEmpty) return;
-    await _open!.writeFrom(bytes);
+    final RandomAccessFile? open = _open;
+    if (open == null) {
+      // A rotation failed after closing the previous file.
+      throw FileSystemException(
+        'No timeline file is open.',
+        _files.last.file.path,
+      );
+    }
+    await open.writeFrom(bytes);
     _files.last.bytes += bytes.length;
   }
 
   /// Close the current file, open the next one and prune the oldest.
   Future<void> _rotate() async {
-    await _open?.close();
+    final RandomAccessFile? previous = _open;
+    _open = null;
+    await previous?.close();
 
     // Counting on from the last file rather than from the list length keeps
     // the counter rising after a prune removed earlier files of this launch.
@@ -290,53 +373,61 @@ final class TelescopeFileSink {
   /// Only names the sink's own pattern produces are considered, and the file
   /// being written is never deleted.
   Future<void> _prune() async {
-    final List<(String, int, File)> timeline = <(String, int, File)>[];
-    await for (final FileSystemEntity entity in _directory.list()) {
-      if (entity is! File) continue;
-      final RegExpMatch? match = _timelineName.firstMatch(
-        entity.uri.pathSegments.last,
-      );
-      if (match == null) continue;
-      timeline.add((match.group(1)!, int.parse(match.group(2)!), entity));
-    }
+    final List<_TimelineEntry> timeline = await _timeline();
     if (timeline.length <= _maxFiles) return;
 
-    timeline.sort(
-      ((String, int, File) a, (String, int, File) b) {
-        final int byStamp = a.$1.compareTo(b.$1);
-        return byStamp != 0 ? byStamp : a.$2.compareTo(b.$2);
-      },
-    );
-
     final String writing = _files.last.name;
-    for (final (String, int, File) entry
-        in timeline.take(timeline.length - _maxFiles)) {
-      final String name = entry.$3.uri.pathSegments.last;
-      if (name == writing) continue;
-      await entry.$3.delete();
-      _files.removeWhere((_TimelineFile file) => file.name == name);
+    for (final _TimelineEntry entry in timeline.skip(_maxFiles)) {
+      if (entry.name == writing) continue;
+      await entry.file.delete();
+      _files.removeWhere((_TimelineFile file) => file.name == entry.name);
     }
   }
 
-  _TimelineFile? _find(String name) {
-    for (final _TimelineFile file in _files) {
-      if (file.name == name) return file;
+  /// The regular files in the directory whose names the sink's own pattern
+  /// produces, newest first. Links are not followed, so a link named like a
+  /// timeline file is not one.
+  Future<List<_TimelineEntry>> _timeline() async {
+    final List<_TimelineEntry> timeline = <_TimelineEntry>[];
+    await for (final FileSystemEntity entity in _directory.list(
+      followLinks: false,
+    )) {
+      if (entity is! File) continue;
+      final String name = entity.uri.pathSegments.last;
+      final RegExpMatch? match = _timelineName.firstMatch(name);
+      if (match == null) continue;
+      timeline.add(
+        _TimelineEntry(
+          name: name,
+          stamp: match.group(1)!,
+          counter: int.parse(match.group(2)!),
+          file: entity,
+        ),
+      );
+    }
+
+    return timeline
+      ..sort((_TimelineEntry a, _TimelineEntry b) {
+        final int byStamp = b.stamp.compareTo(a.stamp);
+        return byStamp != 0 ? byStamp : b.counter.compareTo(a.counter);
+      });
+  }
+
+  Future<File?> _find(String name) async {
+    for (final _TimelineEntry entry in await _timeline()) {
+      if (entry.name == name) return entry.file;
     }
     return null;
   }
 
   /// The bytes from [offset] through the last newline within [maxBytes], or
   /// through the first newline when the line at [offset] is longer.
-  Future<Uint8List> _readLines(
-    _TimelineFile file,
-    int offset,
-    int maxBytes,
-  ) async {
-    final int available = file.bytes - offset;
-    if (available <= 0) return Uint8List(0);
-
-    final RandomAccessFile reader = await file.file.open();
+  Future<Uint8List> _readLines(File file, int offset, int maxBytes) async {
+    final RandomAccessFile reader = await file.open();
     try {
+      final int available = await reader.length() - offset;
+      if (available <= 0) return Uint8List(0);
+
       await reader.setPosition(offset);
       final Uint8List window = await reader.read(
         maxBytes < available ? maxBytes : available,
@@ -347,7 +438,8 @@ final class TelescopeFileSink {
       }
 
       // Every written line ends in a newline, so the rest of this one is
-      // within [available].
+      // within [available]; a file of an earlier launch cut off mid-line
+      // ends the loop at its length.
       final BytesBuilder line = BytesBuilder(copy: false)..add(window);
       while (line.length < available) {
         final Uint8List more = await reader.read(maxBytes);
@@ -389,4 +481,20 @@ final class _TimelineFile {
   int bytes = 0;
 
   String get name => file.uri.pathSegments.last;
+}
+
+/// A timeline file found in the directory: its name, the launch stamp and
+/// rotation counter parsed from it, and the entry the listing returned.
+final class _TimelineEntry {
+  const _TimelineEntry({
+    required this.name,
+    required this.stamp,
+    required this.counter,
+    required this.file,
+  });
+
+  final String name;
+  final String stamp;
+  final int counter;
+  final File file;
 }

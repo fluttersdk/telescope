@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:logging/logging.dart';
 
+import '../telescope_redaction.dart';
+
 /// An immutable log record captured by [LogWatcher].
 class LogRecordEntry {
   LogRecordEntry({
@@ -12,7 +14,6 @@ class LogRecordEntry {
     this.error,
     this.stackTrace,
     int? atUs,
-    this.redacted = false,
   }) : atUs = atUs ?? FlutterTimeline.now;
 
   factory LogRecordEntry.fromLogRecord(LogRecord r) => LogRecordEntry(
@@ -40,10 +41,11 @@ class LogRecordEntry {
   final int atUs;
 
   /// True when [TelescopeRedaction.redactor] ran over this record before it
-  /// was buffered. A record made while no redactor was registered is false,
-  /// and a consumer that persists records (a file sink) writes only the true
-  /// ones.
-  final bool redacted;
+  /// was buffered: only the store's redaction pass sets it, so a record a
+  /// caller constructs is always false. A record made while no redactor was
+  /// registered is false too, and a consumer that persists records (a file
+  /// sink) writes only the true ones.
+  bool get redacted => TelescopeRedaction.isRedacted(this);
 
   Map<String, dynamic> toJson() => {
         'level': level,

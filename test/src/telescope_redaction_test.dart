@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:fluttersdk_telescope/src/records/event_record.dart';
 import 'package:fluttersdk_telescope/src/records/exception_record.dart';
+import 'package:fluttersdk_telescope/src/records/http_request_record.dart';
 import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
 import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 import 'package:fluttersdk_telescope/src/telescope_store.dart';
@@ -365,6 +367,56 @@ void main() {
             same(exception));
       });
 
+      test('drops a record when the redactor throws', () {
+        TelescopeRedaction.redactor = (String s) => throw StateError(s);
+
+        expect(
+          TelescopeRedaction.redactLogRecord(
+            LogRecordEntry(
+              level: 'INFO',
+              levelValue: 800,
+              message: 'm',
+              loggerName: 'l',
+              time: DateTime(2026, 1, 1),
+            ),
+          ),
+          isNull,
+        );
+        expect(
+          TelescopeRedaction.redactExceptionRecord(
+            ExceptionRecord(
+              exceptionType: 'E',
+              message: 'm',
+              time: DateTime(2026, 1, 1),
+            ),
+          ),
+          isNull,
+        );
+        expect(
+          TelescopeRedaction.redactEventRecord(
+            EventRecord(
+              eventType: 'e',
+              payload: <String, dynamic>{},
+              time: DateTime(2026, 1, 1),
+            ),
+          ),
+          isNull,
+        );
+        expect(
+          TelescopeRedaction.redactHttpRecord(
+            HttpRequestRecord(
+              url: 'https://host.test/',
+              method: 'GET',
+              statusCode: 200,
+              durationMs: 1,
+              isError: false,
+              timestamp: DateTime(2026, 1, 1),
+            ),
+          ),
+          isNull,
+        );
+      });
+
       test('runs every String field of a log and an exception record', () {
         TelescopeRedaction.redactor = (String s) => s.toUpperCase();
 
@@ -378,7 +430,7 @@ void main() {
             error: 'e',
             stackTrace: 's',
           ),
-        );
+        )!;
         final ExceptionRecord exception =
             TelescopeRedaction.redactExceptionRecord(
           ExceptionRecord(
@@ -388,7 +440,7 @@ void main() {
             stackTrace: 's',
             isolate: 'i',
           ),
-        );
+        )!;
 
         expect(
           <String?>[

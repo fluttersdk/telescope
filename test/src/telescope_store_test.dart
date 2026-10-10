@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -215,6 +216,69 @@ void main() {
         TelescopeStore.recentHttp().single.url,
         equals('https://u:***@host.test/x'),
       );
+    });
+
+    test('masks a secret held in an event payload key', () {
+      TelescopeRedaction.redactor = redactor;
+
+      TelescopeStore.recordEvent(
+        EventRecord(
+          eventType: 'player.open',
+          payload: <String, dynamic>{
+            'u:p@ss': 'v',
+            'nested': <Object, dynamic>{
+              7: <String, dynamic>{
+                'p@ss': 1,
+              },
+            },
+          },
+          time: DateTime(2026, 1, 1),
+        ),
+      );
+
+      final EventRecord record = TelescopeStore.recentEvents().single;
+      expect(jsonEncode(record.toJson()), isNot(contains('p@ss')));
+      expect(
+        record.payload,
+        equals(<String, dynamic>{
+          'u:***': 'v',
+          'nested': <String, dynamic>{
+            '7': <String, dynamic>{
+              '***': 1,
+            },
+          },
+        }),
+      );
+    });
+
+    test('a throwing redactor drops the record from queue and stream',
+        () async {
+      TelescopeRedaction.redactor = (String s) => throw StateError(s);
+      final List<Object> streamed = <Object>[];
+      final List<StreamSubscription<Object>> subscriptions =
+          <StreamSubscription<Object>>[
+        TelescopeStore.onHttpRecord.listen(streamed.add),
+        TelescopeStore.onLogRecord.listen(streamed.add),
+        TelescopeStore.onExceptionRecord.listen(streamed.add),
+        TelescopeStore.onEventRecord.listen(streamed.add),
+      ];
+      addTearDown(() async {
+        for (final StreamSubscription<Object> s in subscriptions) {
+          await s.cancel();
+        }
+      });
+
+      TelescopeStore.recordHttp(_http(1));
+      TelescopeStore.recordLog(_log('info', 'p@ss'));
+      TelescopeStore.recordException(_exception('p@ss'));
+      TelescopeStore.recordEvent(_event('p@ss'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(TelescopeStore.recentHttp(), isEmpty);
+      expect(TelescopeStore.recentLogs(), isEmpty);
+      expect(TelescopeStore.recentExceptions(), isEmpty);
+      expect(TelescopeStore.recentEvents(), isEmpty);
+      expect(streamed, isEmpty);
     });
 
     test('resetForTesting() drops the redactor', () {

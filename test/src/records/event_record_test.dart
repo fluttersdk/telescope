@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show FlutterTimeline;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluttersdk_telescope/src/records/event_record.dart';
+import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 
 void main() {
   group('EventRecord', () {
@@ -58,22 +59,35 @@ void main() {
           }));
     });
 
-    test('redacted defaults to false and serializes when true', () {
+    test('redacted is true only on the copy a redactor produced', () {
+      addTearDown(TelescopeRedaction.resetForTesting);
       final plain = EventRecord(
         eventType: 'UserLoggedIn',
-        payload: {},
+        payload: <String, dynamic>{},
         time: time,
       );
-      final masked = EventRecord(
-        eventType: 'UserLoggedIn',
-        payload: {},
-        time: time,
-        redacted: true,
-      );
+      TelescopeRedaction.redactor = (String s) => s;
+      final masked = TelescopeRedaction.redactEventRecord(plain)!;
 
       expect(plain.redacted, isFalse);
       expect(masked.redacted, isTrue);
       expect(masked.toJson()['redacted'], isTrue);
+    });
+
+    test('a caller cannot construct a record flagged redacted', () {
+      expect(
+        () => Function.apply(
+          EventRecord.new,
+          const <Object?>[],
+          <Symbol, Object?>{
+            #eventType: 'UserLoggedIn',
+            #payload: <String, dynamic>{},
+            #time: time,
+            #redacted: true,
+          },
+        ),
+        throwsNoSuchMethodError,
+      );
     });
 
     test('toJson includes listenerCount when set', () {

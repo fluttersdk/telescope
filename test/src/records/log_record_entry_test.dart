@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:fluttersdk_telescope/src/records/log_record_entry.dart';
+import 'package:fluttersdk_telescope/src/telescope_redaction.dart';
 
 void main() {
   group('LogRecordEntry', () {
@@ -112,7 +113,8 @@ void main() {
       expect(record.atUs, inInclusiveRange(before, after));
     });
 
-    test('redacted defaults to false and serializes when true', () {
+    test('redacted is true only on the copy a redactor produced', () {
+      addTearDown(TelescopeRedaction.resetForTesting);
       final plain = LogRecordEntry(
         level: 'INFO',
         levelValue: 800,
@@ -120,18 +122,30 @@ void main() {
         loggerName: 'telescope',
         time: time,
       );
-      final masked = LogRecordEntry(
-        level: 'INFO',
-        levelValue: 800,
-        message: 'm',
-        loggerName: 'telescope',
-        time: time,
-        redacted: true,
-      );
+      TelescopeRedaction.redactor = (String s) => s;
+      final masked = TelescopeRedaction.redactLogRecord(plain)!;
 
       expect(plain.redacted, isFalse);
       expect(masked.redacted, isTrue);
       expect(masked.toJson()['redacted'], isTrue);
+    });
+
+    test('a caller cannot construct a record flagged redacted', () {
+      expect(
+        () => Function.apply(
+          LogRecordEntry.new,
+          const <Object?>[],
+          <Symbol, Object?>{
+            #level: 'INFO',
+            #levelValue: 800,
+            #message: 'm',
+            #loggerName: 'telescope',
+            #time: time,
+            #redacted: true,
+          },
+        ),
+        throwsNoSuchMethodError,
+      );
     });
 
     test('toJson includes error and stackTrace when set', () {

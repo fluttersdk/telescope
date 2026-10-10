@@ -46,10 +46,13 @@ Future<developer.ServiceExtensionResponse> requestsHandler(
 ///
 /// Returns recent [LogRecordEntry] entries from [TelescopeStore], oldest
 /// first, with a `cursor` for the next read. Accepts these optional params:
-/// `limit` (stringified integer, the newest N after the filters), `level`
+/// `limit` (stringified integer, applied after the filters), `level`
 /// (minimum log level name), `logger` (exact logger name) and `since`
 /// (stringified microseconds, exclusive, compared with `atUs`). A `since`
 /// that is not an integer is refused.
+///
+/// With `since`, `limit` keeps the OLDEST N after it, so paging by `cursor`
+/// skips nothing; without `since` it keeps the newest N.
 ///
 /// `cursor` is the largest `atUs` returned, else the given `since`, else null:
 /// passing it back as `since` yields only newer records.
@@ -69,7 +72,11 @@ Future<developer.ServiceExtensionResponse> consoleHandler(
             (since.value == null || r.atUs > since.value!),
       )
       .toList();
-  final page = _newest(records, int.tryParse(params['limit'] ?? ''));
+  final page = _page(
+    records,
+    int.tryParse(params['limit'] ?? ''),
+    oldest: since.value != null,
+  );
   return developer.ServiceExtensionResponse.result(
     jsonEncode({
       'messages': page.map((r) => r.toJson()).toList(),
@@ -98,9 +105,12 @@ Future<developer.ServiceExtensionResponse> exceptionsHandler(
 ///
 /// Returns recent [EventRecord] entries from [TelescopeStore], oldest first,
 /// with a `cursor` for the next read. Accepts these optional params: `limit`
-/// (stringified integer, the newest N after the filters), `type` (prefix of
+/// (stringified integer, applied after the filters), `type` (prefix of
 /// `eventType`) and `since` (stringified microseconds, exclusive, compared
 /// with `atUs`). A `since` that is not an integer is refused.
+///
+/// With `since`, `limit` keeps the OLDEST N after it, so paging by `cursor`
+/// skips nothing; without `since` it keeps the newest N.
 ///
 /// `cursor` is the largest `atUs` returned, else the given `since`, else null:
 /// passing it back as `since` yields only newer records.
@@ -120,7 +130,11 @@ Future<developer.ServiceExtensionResponse> eventsHandler(
             (since.value == null || r.atUs > since.value!),
       )
       .toList();
-  final page = _newest(records, int.tryParse(params['limit'] ?? ''));
+  final page = _page(
+    records,
+    int.tryParse(params['limit'] ?? ''),
+    oldest: since.value != null,
+  );
   return developer.ServiceExtensionResponse.result(
     jsonEncode({
       'events': page.map((r) => r.toJson()).toList(),
@@ -329,10 +343,15 @@ developer.ServiceExtensionResponse _invalidSince() =>
       'since must be an integer number of microseconds.',
     );
 
-/// The newest [limit] of [records]; all of them when [limit] is null.
-List<T> _newest<T>(List<T> records, int? limit) {
+/// [limit] of [records] (oldest first); all of them when [limit] is null.
+///
+/// Keeps the oldest when [oldest] is true, which is what a cursor read needs:
+/// the cursor is the largest `atUs` returned, so a page that dropped its
+/// oldest records would skip them for good. Keeps the newest otherwise.
+List<T> _page<T>(List<T> records, int? limit, {required bool oldest}) {
   if (limit == null || records.length <= limit) return records;
   if (limit <= 0) return <T>[];
+  if (oldest) return records.sublist(0, limit);
   return records.sublist(records.length - limit);
 }
 

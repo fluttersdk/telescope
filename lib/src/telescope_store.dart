@@ -151,10 +151,12 @@ class TelescopeStore {
   /// emit the masked copy on [onHttpRecord]. Never throws on a malformed
   /// body: one that is not JSON is buffered as given. When a
   /// [TelescopeRedaction.redactor] is registered it runs after the key
-  /// masking, before the record enters the queue or the stream.
+  /// masking, before the record enters the queue or the stream; a record
+  /// the redactor throws on is dropped, neither buffered nor emitted.
   static void recordHttp(HttpRequestRecord r) {
     if (_paused) return;
-    final HttpRequestRecord redacted = TelescopeRedaction.redactHttpRecord(r);
+    final HttpRequestRecord? redacted = TelescopeRedaction.redactHttpRecord(r);
+    if (redacted == null) return;
     _http.addLast(redacted);
     while (_http.length > _capacityOf(TelescopeKind.http)) {
       _http.removeFirst();
@@ -163,10 +165,12 @@ class TelescopeStore {
   }
 
   /// Buffer [r] and emit it on [onLogRecord], after the registered
-  /// [TelescopeRedaction.redactor] (if any) ran over its text.
+  /// [TelescopeRedaction.redactor] (if any) ran over its text; dropped when
+  /// the redactor throws.
   static void recordLog(LogRecordEntry r) {
     if (_paused) return;
-    final LogRecordEntry redacted = TelescopeRedaction.redactLogRecord(r);
+    final LogRecordEntry? redacted = TelescopeRedaction.redactLogRecord(r);
+    if (redacted == null) return;
     _logs.addLast(redacted);
     while (_logs.length > _capacityOf(TelescopeKind.logs)) {
       _logs.removeFirst();
@@ -175,12 +179,13 @@ class TelescopeStore {
   }
 
   /// Buffer [r] and emit it on [onExceptionRecord], after the registered
-  /// [TelescopeRedaction.redactor] (if any) ran over its message and stack.
+  /// [TelescopeRedaction.redactor] (if any) ran over its message and stack;
+  /// dropped when the redactor throws.
   static void recordException(ExceptionRecord r) {
     if (_paused) return;
-    final ExceptionRecord redacted = TelescopeRedaction.redactExceptionRecord(
-      r,
-    );
+    final ExceptionRecord? redacted =
+        TelescopeRedaction.redactExceptionRecord(r);
+    if (redacted == null) return;
     _exceptions.addLast(redacted);
     while (_exceptions.length > _capacityOf(TelescopeKind.exceptions)) {
       _exceptions.removeFirst();
@@ -208,10 +213,12 @@ class TelescopeStore {
 
   /// Buffer [r] and emit it on [onEventRecord], with its payload made
   /// JSON-safe and run through the registered [TelescopeRedaction.redactor]
-  /// (if any) first; see [TelescopeRedaction.redactEventRecord].
+  /// (if any) first; dropped when the redactor throws. See
+  /// [TelescopeRedaction.redactEventRecord].
   static void recordEvent(EventRecord r) {
     if (_paused) return;
-    final EventRecord redacted = TelescopeRedaction.redactEventRecord(r);
+    final EventRecord? redacted = TelescopeRedaction.redactEventRecord(r);
+    if (redacted == null) return;
     _events.addLast(redacted);
     while (_events.length > _capacityOf(TelescopeKind.events)) {
       _events.removeFirst();

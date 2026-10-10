@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../cursor_follow.dart';
+
 /// `artisan telescope:events` ; print recent in-app event records from the
 /// running Flutter app (captured by MagicEventWatcher on `Event.dispatch()`).
 ///
@@ -53,30 +55,35 @@ class TelescopeEventsCommand extends ArtisanCommand {
     final type = ctx.input.option('type');
     if (type != null) params['type'] = type.toString();
 
-    for (var polls = 1;; polls++) {
-      final response = await ctx.callExtension<Map<String, dynamic>>(
-        'ext.telescope.events',
-        params,
-      );
-      final records = (response['events'] as List<dynamic>? ?? <dynamic>[])
-          .cast<Map<String, dynamic>>();
+    var polls = 0;
+    await followCursor(
+      interval: _pollInterval,
+      delay: _delay,
+      shouldStop: () => !follow || _shouldStop(polls),
+      read: (int? since) async {
+        polls++;
+        if (since != null) params['since'] = since.toString();
+        final response = await ctx.callExtension<Map<String, dynamic>>(
+          'ext.telescope.events',
+          params,
+        );
+        final records = (response['events'] as List<dynamic>? ?? <dynamic>[])
+            .cast<Map<String, dynamic>>();
 
-      if (records.isEmpty && !json && !follow) {
-        ctx.output.warning('No event records (register MagicEventWatcher).');
-      }
-      for (final r in records) {
-        ctx.output.writeln(json ? jsonEncode(r) : _format(r));
-      }
+        if (records.isEmpty && !json && !follow) {
+          ctx.output.warning('No event records (register MagicEventWatcher).');
+        }
+        for (final r in records) {
+          ctx.output.writeln(json ? jsonEncode(r) : _format(r));
+        }
 
-      if (!follow || _shouldStop(polls)) return 0;
-
-      // The cursor is the last atUs seen, so the next read returns only newer
-      // records and needs no limit.
-      final cursor = response['cursor'];
-      if (cursor != null) params['since'] = cursor.toString();
-      params.remove('limit');
-      await _delay(_pollInterval);
-    }
+        // The cursor is the last atUs seen, so the next read returns only
+        // newer records and needs no limit.
+        if (follow) params.remove('limit');
+        return (response['cursor'] as num?)?.toInt();
+      },
+    );
+    return 0;
   }
 
   String _format(Map<String, dynamic> r) {

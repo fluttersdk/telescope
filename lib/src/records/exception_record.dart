@@ -1,3 +1,5 @@
+import '../telescope_redaction.dart';
+
 /// An immutable exception record captured by [ExceptionWatcher].
 class ExceptionRecord {
   ExceptionRecord({
@@ -6,7 +8,6 @@ class ExceptionRecord {
     required this.time,
     this.stackTrace,
     this.isolate,
-    this.redacted = false,
   });
 
   final String exceptionType;
@@ -16,10 +17,11 @@ class ExceptionRecord {
   final String? isolate;
 
   /// True when [TelescopeRedaction.redactor] ran over this record before it
-  /// was buffered. A record made while no redactor was registered is false,
-  /// and a consumer that persists records (a file sink) writes only the true
-  /// ones.
-  final bool redacted;
+  /// was buffered: only the store's redaction pass sets it, so a record a
+  /// caller constructs is always false. A record made while no redactor was
+  /// registered is false too, and a consumer that persists records (a file
+  /// sink) writes only the true ones.
+  bool get redacted => TelescopeRedaction.isRedacted(this);
 
   Map<String, dynamic> toJson() => {
         'exceptionType': exceptionType,
