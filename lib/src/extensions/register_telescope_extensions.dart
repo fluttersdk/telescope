@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:fluttersdk_artisan/artisan.dart';
 import 'package:meta/meta.dart';
 
+import '../telescope_file_sink.dart';
 import '../telescope_store.dart';
 import '../watchers/frame_perf_watcher.dart';
 
@@ -21,6 +22,8 @@ void registerAllTelescopeExtensions() {
   registerExtensionIdempotent('ext.telescope.clear', clearHandler);
   registerExtensionIdempotent('ext.telescope.pause', pauseHandler);
   registerExtensionIdempotent('ext.telescope.resume', resumeHandler);
+  registerExtensionIdempotent('ext.telescope.files', filesHandler);
+  registerExtensionIdempotent('ext.telescope.file', fileHandler);
 }
 
 /// Handler for ext.telescope.requests.
@@ -41,19 +44,37 @@ Future<developer.ServiceExtensionResponse> requestsHandler(
 
 /// Handler for ext.telescope.console.
 ///
-/// Returns recent [LogRecordEntry] entries from [TelescopeStore]. Accepts an
-/// optional `limit` param (stringified integer) and an optional `level` param
-/// (minimum log level name) to filter the result set.
+/// Returns recent [LogRecordEntry] entries from [TelescopeStore], oldest
+/// first, with a `cursor` for the next read. Accepts these optional params:
+/// `limit` (stringified integer, the newest N after the filters), `level`
+/// (minimum log level name), `logger` (exact logger name) and `since`
+/// (stringified microseconds, exclusive, compared with `atUs`). A `since`
+/// that is not an integer is refused.
+///
+/// `cursor` is the largest `atUs` returned, else the given `since`, else null:
+/// passing it back as `since` yields only newer records.
 @visibleForTesting
 Future<developer.ServiceExtensionResponse> consoleHandler(
   String method,
   Map<String, String> params,
 ) async {
-  final limit = int.tryParse(params['limit'] ?? '');
-  final level = params['level'];
-  final records = TelescopeStore.recentLogs(limit: limit, minLevel: level);
+  final since = _since(params);
+  if (since.refused) return _invalidSince();
+
+  final logger = params['logger'];
+  final records = TelescopeStore.recentLogs(minLevel: params['level'])
+      .where(
+        (r) =>
+            (logger == null || r.loggerName == logger) &&
+            (since.value == null || r.atUs > since.value!),
+      )
+      .toList();
+  final page = _newest(records, int.tryParse(params['limit'] ?? ''));
   return developer.ServiceExtensionResponse.result(
-    jsonEncode({'messages': records.map((r) => r.toJson()).toList()}),
+    jsonEncode({
+      'messages': page.map((r) => r.toJson()).toList(),
+      'cursor': _cursor(page.map((r) => r.atUs), since.value),
+    }),
   );
 }
 
@@ -75,17 +96,36 @@ Future<developer.ServiceExtensionResponse> exceptionsHandler(
 
 /// Handler for ext.telescope.events.
 ///
-/// Returns recent [EventRecord] entries from [TelescopeStore]. Accepts an
-/// optional `limit` param (stringified integer) to cap the result set.
+/// Returns recent [EventRecord] entries from [TelescopeStore], oldest first,
+/// with a `cursor` for the next read. Accepts these optional params: `limit`
+/// (stringified integer, the newest N after the filters), `type` (prefix of
+/// `eventType`) and `since` (stringified microseconds, exclusive, compared
+/// with `atUs`). A `since` that is not an integer is refused.
+///
+/// `cursor` is the largest `atUs` returned, else the given `since`, else null:
+/// passing it back as `since` yields only newer records.
 @visibleForTesting
 Future<developer.ServiceExtensionResponse> eventsHandler(
   String method,
   Map<String, String> params,
 ) async {
-  final limit = int.tryParse(params['limit'] ?? '');
-  final records = TelescopeStore.recentEvents(limit: limit);
+  final since = _since(params);
+  if (since.refused) return _invalidSince();
+
+  final type = params['type'];
+  final records = TelescopeStore.recentEvents()
+      .where(
+        (r) =>
+            (type == null || r.eventType.startsWith(type)) &&
+            (since.value == null || r.atUs > since.value!),
+      )
+      .toList();
+  final page = _newest(records, int.tryParse(params['limit'] ?? ''));
   return developer.ServiceExtensionResponse.result(
-    jsonEncode({'events': records.map((r) => r.toJson()).toList()}),
+    jsonEncode({
+      'events': page.map((r) => r.toJson()).toList(),
+      'cursor': _cursor(page.map((r) => r.atUs), since.value),
+    }),
   );
 }
 
@@ -216,3 +256,85 @@ Future<developer.ServiceExtensionResponse> resumeHandler(
     jsonEncode({'resumed': true}),
   );
 }
+
+/// Handler for ext.telescope.files.
+///
+/// Lists the timeline files of the running [TelescopeFileSink] as
+/// `{files: [{name, bytes}]}`, newest first. Answers `{error}` when no sink
+/// runs.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> filesHandler(
+  String method,
+  Map<String, String> params,
+) async {
+  final sink = TelescopeFileSink.current;
+  if (sink == null) return _fileError(_noSink);
+
+  return developer.ServiceExtensionResponse.result(
+    jsonEncode({'files': await sink.files()}),
+  );
+}
+
+/// Handler for ext.telescope.file.
+///
+/// Reads whole lines of one timeline file through the running
+/// [TelescopeFileSink], answering `{lines, next}`. Params: `name` (a file
+/// from ext.telescope.files), `offset` (bytes, default 0) and `maxBytes`
+/// (default 65536). Answers `{error}` when no sink runs and, with one fixed
+/// message, whenever the sink refuses; `name` only ever reaches
+/// [TelescopeFileSink.read], which compares it with the files it wrote.
+@visibleForTesting
+Future<developer.ServiceExtensionResponse> fileHandler(
+  String method,
+  Map<String, String> params,
+) async {
+  final sink = TelescopeFileSink.current;
+  if (sink == null) return _fileError(_noSink);
+
+  final offset = int.tryParse(params['offset'] ?? '0');
+  final maxBytes = int.tryParse(params['maxBytes'] ?? '$_defaultMaxBytes');
+  if (offset == null || maxBytes == null) return _fileError(_fileRefused);
+
+  final page = await sink.read(
+    params['name'] ?? '',
+    offset: offset,
+    maxBytes: maxBytes,
+  );
+  if (page == null) return _fileError(_fileRefused);
+
+  return developer.ServiceExtensionResponse.result(jsonEncode(page));
+}
+
+const String _noSink = 'No timeline file sink is running.';
+const String _fileRefused =
+    'Unknown timeline file, or offset or maxBytes out of range.';
+const int _defaultMaxBytes = 65536;
+
+developer.ServiceExtensionResponse _fileError(String message) =>
+    developer.ServiceExtensionResponse.result(jsonEncode({'error': message}));
+
+/// The `since` param: [value] null when absent, [refused] when present but
+/// not an integer. A typo must not read as "from the start".
+({int? value, bool refused}) _since(Map<String, String> params) {
+  final raw = params['since'];
+  if (raw == null) return (value: null, refused: false);
+
+  final value = int.tryParse(raw);
+  return (value: value, refused: value == null);
+}
+
+developer.ServiceExtensionResponse _invalidSince() =>
+    developer.ServiceExtensionResponse.error(
+      developer.ServiceExtensionResponse.invalidParams,
+      'since must be an integer number of microseconds.',
+    );
+
+/// The newest [limit] of [records]; all of them when [limit] is null.
+List<T> _newest<T>(List<T> records, int? limit) {
+  if (limit == null || records.length <= limit) return records;
+  if (limit <= 0) return <T>[];
+  return records.sublist(records.length - limit);
+}
+
+int? _cursor(Iterable<int> atUs, int? since) =>
+    atUs.isEmpty ? since : atUs.reduce((a, b) => a > b ? a : b);

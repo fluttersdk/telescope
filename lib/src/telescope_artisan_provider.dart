@@ -4,6 +4,7 @@ import 'commands/telescope_caches_command.dart';
 import 'commands/telescope_clear_command.dart';
 import 'commands/telescope_dumps_command.dart';
 import 'commands/telescope_events_command.dart';
+import 'commands/telescope_files_command.dart';
 import 'commands/telescope_frames_command.dart';
 import 'commands/telescope_gates_command.dart';
 import 'commands/telescope_install_command.dart';
@@ -14,9 +15,9 @@ import 'commands/telescope_tail_command.dart';
 /// Contributes telescope:* commands and MCP tool descriptors to the artisan
 /// dispatcher.
 ///
-/// V1 ships 10 CLI commands (telescope:install, telescope:tail, telescope:requests,
+/// V1 ships 11 CLI commands (telescope:install, telescope:tail, telescope:requests,
 /// telescope:queries, telescope:caches, telescope:events, telescope:gates,
-/// telescope:dumps, telescope:frames, telescope:clear) and 10 MCP tools backed by ext.telescope.* VM Service extensions registered by
+/// telescope:dumps, telescope:frames, telescope:clear, telescope:files) and 10 MCP tools backed by ext.telescope.* VM Service extensions registered by
 /// [registerAllTelescopeExtensions]. The pause/resume extensions are BACKLOG
 /// per D5 and are intentionally absent from mcpTools().
 class TelescopeArtisanProvider extends ArtisanServiceProvider {
@@ -35,6 +36,7 @@ class TelescopeArtisanProvider extends ArtisanServiceProvider {
         TelescopeDumpsCommand(),
         TelescopeFramesCommand(),
         TelescopeClearCommand(),
+        TelescopeFilesCommand(),
       ];
 
   @override
