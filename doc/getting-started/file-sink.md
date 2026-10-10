@@ -51,6 +51,10 @@ Files are named `timeline-<launch stamp>-<n>.jsonl`, where the stamp is the UTC 
 oldest timeline files in the directory beyond `maxFiles`, earlier launches included. It only ever touches
 names its own pattern produces.
 
+The stamp has second precision, so a sink started again within the same second (a restart, or `start()` while
+one runs) names the file of the sink it replaced. The new sink appends to that file and counts its existing
+bytes toward `maxFileBytes`; it never truncates it.
+
 ## Fail closed
 
 The sink writes only redacted records. A record whose `redacted` flag is false, which means it was buffered

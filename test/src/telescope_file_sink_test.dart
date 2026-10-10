@@ -45,6 +45,29 @@ void _exception(String message) => TelescopeStore.recordException(
 
 String _identity(String text) => text;
 
+/// An event whose line is the same length whatever its [i], padded to
+/// [width] characters of payload, so a test can size a file to whole lines.
+void _paddedEvent(int i, {int width = 0}) => TelescopeStore.recordEvent(
+      EventRecord(
+        eventType: 'player.tick',
+        payload: <String, dynamic>{
+          'i': i,
+          'pad': 'x' * width,
+        },
+        time: DateTime.utc(2026),
+        atUs: 1000,
+      ),
+    );
+
+/// Waits out the tail of the current second, so two sinks started one after
+/// the other share one launch stamp.
+Future<void> _earlyInSecond() async {
+  final int millisecond = DateTime.now().millisecond;
+  if (millisecond > 500) {
+    await Future<void>.delayed(Duration(milliseconds: 1001 - millisecond));
+  }
+}
+
 void main() {
   late Directory root;
   late String directory;
@@ -114,6 +137,88 @@ void main() {
         expect(TelescopeFileSink.current, same(second));
         expect(first.pendingLines, 0);
         expect(second.pendingLines, 1);
+      });
+
+      test('a sink started again in the same second keeps the first lines',
+          () async {
+        TelescopeRedaction.redactor = _identity;
+        await _earlyInSecond();
+        final TelescopeFileSink first = await TelescopeFileSink.start(
+          directory: directory,
+        );
+        _event(1);
+        await _delivered();
+        await first.flush();
+
+        // Started while the first still runs: start() stops it first.
+        final TelescopeFileSink second = await TelescopeFileSink.start(
+          directory: directory,
+        );
+        _event(2);
+        await _delivered();
+        await second.flush();
+
+        final File file = timelineFiles().single;
+        final List<Map<String, dynamic>> lines = file
+            .readAsLinesSync()
+            .map((String line) => jsonDecode(line) as Map<String, dynamic>)
+            .toList();
+        expect(
+          lines.map((Map<String, dynamic> line) => line['payload']['i']),
+          orderedEquals(<int>[1, 2]),
+        );
+      });
+
+      test('a sink started after a stop in the same second appends too',
+          () async {
+        TelescopeRedaction.redactor = _identity;
+        await _earlyInSecond();
+        final TelescopeFileSink first = await TelescopeFileSink.start(
+          directory: directory,
+        );
+        _event(1);
+        await _delivered();
+        await first.flush();
+        await first.stop();
+
+        final TelescopeFileSink second = await TelescopeFileSink.start(
+          directory: directory,
+        );
+        _event(2);
+        await _delivered();
+        await second.flush();
+
+        expect(timelineFiles().single.readAsLinesSync(), hasLength(2));
+      });
+
+      test('rotation counts the bytes a same-second file already holds',
+          () async {
+        TelescopeRedaction.redactor = _identity;
+        await _earlyInSecond();
+        final TelescopeFileSink first = await TelescopeFileSink.start(
+          directory: directory,
+        );
+        _paddedEvent(1);
+        await _delivered();
+        await first.flush();
+        await first.stop();
+        final int lineBytes = timelineFiles().single.lengthSync();
+
+        // Room for one and a half lines: the second sink's line must not be
+        // appended to a file that already holds one.
+        final TelescopeFileSink second = await TelescopeFileSink.start(
+          directory: directory,
+          maxFileBytes: lineBytes + lineBytes ~/ 2,
+        );
+        _paddedEvent(2);
+        await _delivered();
+        await second.flush();
+
+        final List<Map<String, Object>> files = await second.files();
+        expect(files, hasLength(2));
+        for (final Map<String, Object> file in files) {
+          expect(file['bytes']! as int, lessThanOrEqualTo(lineBytes));
+        }
       });
 
       test('a failed start leaves no current sink and no subscription',
@@ -271,6 +376,40 @@ void main() {
         expect(sink.pendingLines, 0);
         await Future<void>.delayed(const Duration(milliseconds: 600));
         expect(sink.writeFailures, 1);
+      });
+
+      test(
+          'a flush after a failed rotation fails loudly rather than drop lines',
+          () async {
+        TelescopeRedaction.redactor = _identity;
+        final TelescopeFileSink sink = await TelescopeFileSink.start(
+          directory: directory,
+          maxFileBytes: 400,
+        );
+        _paddedEvent(1);
+        await _delivered();
+        await sink.flush();
+        // The next rotation opens a file in a directory that is gone.
+        Directory(directory).deleteSync(recursive: true);
+
+        // Too long for the room left: rotation fails and closes the file.
+        _paddedEvent(2, width: 400);
+        await _delivered();
+        await expectLater(sink.flush(), throwsA(isA<FileSystemException>()));
+
+        // Short enough for the old file, but no file is open any more.
+        _paddedEvent(3);
+        await _delivered();
+        await expectLater(
+          sink.flush(),
+          throwsA(
+            isA<FileSystemException>().having(
+              (FileSystemException e) => e.message,
+              'message',
+              contains('No timeline file is open'),
+            ),
+          ),
+        );
       });
 
       test('stop flushes buffered lines and ends the subscription', () async {

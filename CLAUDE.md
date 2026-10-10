@@ -31,8 +31,8 @@ the consumer's `./bin/fsa` (native AOT, ~110ms warm) is the recommended entry po
 
 | Command | When |
 |---|---|
-| `flutter test --exclude-tags=integration --timeout=30s` | Default runner (CI gate). Baseline 497 green on `feature/host-timeline`. |
-| `flutter test --coverage --exclude-tags=integration` | Emits `coverage/lcov.info` directly. Coverage floor 80%; current 97.79%. |
+| `flutter test --exclude-tags=integration --timeout=30s` | Default runner (CI gate). Baseline 509 green on `feature/host-timeline`. |
+| `flutter test --coverage --exclude-tags=integration` | Emits `coverage/lcov.info` directly. Coverage floor 80%; current 98.45%. |
 | `dart format lib/ test/ bin/` | Must produce zero diff. |
 | `dart analyze lib/ test/ bin/` | Must report zero issues across all three roots. |
 | `flutter pub get` | Resolve deps (hosted-only). |

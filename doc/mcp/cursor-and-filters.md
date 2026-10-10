@@ -26,7 +26,8 @@ were new.
 
 The filters run first, then `limit`:
 
-- With `since`, `limit` keeps the OLDEST N records after it. Paging by `cursor` then skips nothing.
+- With `since`, `limit` keeps the OLDEST N records after it. Paging by `cursor` then skips nothing. A page cut
+  inside a run of records sharing one `atUs` keeps the whole run, so it may exceed `limit` by those ties.
 - Without `since`, `limit` keeps the NEWEST N records that matched.
 
 Records come back oldest first either way.

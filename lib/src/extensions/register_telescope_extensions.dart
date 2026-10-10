@@ -51,7 +51,8 @@ Future<developer.ServiceExtensionResponse> requestsHandler(
 /// (stringified microseconds, exclusive, compared with `atUs`). A `since`
 /// that is not an integer is refused.
 ///
-/// With `since`, `limit` keeps the OLDEST N after it, so paging by `cursor`
+/// With `since`, `limit` keeps the OLDEST N after it, extended to the end of
+/// the run of records sharing the last one's `atUs`, so paging by `cursor`
 /// skips nothing; without `since` it keeps the newest N.
 ///
 /// `cursor` is the largest `atUs` returned, else the given `since`, else null:
@@ -75,6 +76,7 @@ Future<developer.ServiceExtensionResponse> consoleHandler(
   final page = _page(
     records,
     int.tryParse(params['limit'] ?? ''),
+    atUs: (r) => r.atUs,
     oldest: since.value != null,
   );
   return developer.ServiceExtensionResponse.result(
@@ -109,7 +111,8 @@ Future<developer.ServiceExtensionResponse> exceptionsHandler(
 /// `eventType`) and `since` (stringified microseconds, exclusive, compared
 /// with `atUs`). A `since` that is not an integer is refused.
 ///
-/// With `since`, `limit` keeps the OLDEST N after it, so paging by `cursor`
+/// With `since`, `limit` keeps the OLDEST N after it, extended to the end of
+/// the run of records sharing the last one's `atUs`, so paging by `cursor`
 /// skips nothing; without `since` it keeps the newest N.
 ///
 /// `cursor` is the largest `atUs` returned, else the given `since`, else null:
@@ -133,6 +136,7 @@ Future<developer.ServiceExtensionResponse> eventsHandler(
   final page = _page(
     records,
     int.tryParse(params['limit'] ?? ''),
+    atUs: (r) => r.atUs,
     oldest: since.value != null,
   );
   return developer.ServiceExtensionResponse.result(
@@ -348,11 +352,27 @@ developer.ServiceExtensionResponse _invalidSince() =>
 /// Keeps the oldest when [oldest] is true, which is what a cursor read needs:
 /// the cursor is the largest `atUs` returned, so a page that dropped its
 /// oldest records would skip them for good. Keeps the newest otherwise.
-List<T> _page<T>(List<T> records, int? limit, {required bool oldest}) {
+///
+/// A cursor read also finishes the run of records sharing the page's last
+/// `atUs` ([atUs] reads it), so the page may exceed [limit] by those ties:
+/// the next read filters strictly after the cursor and would otherwise never
+/// see them.
+List<T> _page<T>(
+  List<T> records,
+  int? limit, {
+  required int Function(T record) atUs,
+  required bool oldest,
+}) {
   if (limit == null || records.length <= limit) return records;
   if (limit <= 0) return <T>[];
-  if (oldest) return records.sublist(0, limit);
-  return records.sublist(records.length - limit);
+  if (!oldest) return records.sublist(records.length - limit);
+
+  var end = limit;
+  final last = atUs(records[end - 1]);
+  while (end < records.length && atUs(records[end]) == last) {
+    end++;
+  }
+  return records.sublist(0, end);
 }
 
 int? _cursor(Iterable<int> atUs, int? since) =>

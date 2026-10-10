@@ -91,7 +91,8 @@ Structured log records from `package:logging`.
 The extension also accepts `since` (an `atUs`, microseconds, exclusive)
 and `logger` (exact name), but the tool descriptor declares neither; from
 a shell use `telescope:tail --since --logger --json --follow`. With
-`since`, `limit` keeps the OLDEST N after it; without, the newest N.
+`since`, `limit` keeps the OLDEST N after it (plus any ties on the last
+`atUs`); without, the newest N.
 
 **Response:**
 

@@ -15,10 +15,14 @@ class _StubContext extends ArtisanContext {
     required ArtisanOutput output,
     Map<String, dynamic>? response,
     List<Map<String, dynamic>>? responses,
+    this.failOnCall,
   })  : _responses = responses ?? <Map<String, dynamic>>[response!],
         super.bare(input, output);
 
   final List<Map<String, dynamic>> _responses;
+
+  /// The 1-based call that throws, as a lost VM Service connection does.
+  final int? failOnCall;
   String? lastMethod;
   Map<String, dynamic>? lastParams;
   final List<Map<String, dynamic>> calls = <Map<String, dynamic>>[];
@@ -29,6 +33,7 @@ class _StubContext extends ArtisanContext {
     lastMethod = method;
     lastParams = params;
     calls.add(Map<String, dynamic>.of(params ?? <String, dynamic>{}));
+    if (calls.length == failOnCall) throw StateError('The app is gone.');
     final index =
         calls.length <= _responses.length ? calls.length : _responses.length;
     return _responses[index - 1] as T;
@@ -287,6 +292,29 @@ void main() {
         ).handle(ctx);
 
         expect(output.content, isEmpty);
+      });
+
+      test('on the real clock polls again after a second until a read fails',
+          () async {
+        final ctx = _StubContext(
+          input: MapInput(const {'follow': true}),
+          output: BufferedOutput(),
+          responses: const [
+            {
+              'events': <dynamic>[],
+              'cursor': 300,
+            },
+          ],
+          failOnCall: 2,
+        );
+
+        await expectLater(
+          TelescopeEventsCommand().handle(ctx),
+          throwsStateError,
+        );
+
+        expect(ctx.calls, hasLength(2));
+        expect(ctx.calls.last, containsPair('since', '300'));
       });
 
       test('without --follow polls exactly once', () async {

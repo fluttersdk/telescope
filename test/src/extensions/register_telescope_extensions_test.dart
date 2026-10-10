@@ -941,6 +941,45 @@ void main() {
       expect(seen, equals(_range(1, 120)));
     });
 
+    test('a page cut inside a run of one atUs keeps the whole run', () async {
+      for (final atUs in <int>[1, 2, 3, 3, 3, 4]) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final decoded = await decodeEvents({'since': '0', 'limit': '3'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.map((e) => e['atUs']), equals(<int>[1, 2, 3, 3, 3]));
+      expect(decoded['cursor'], equals(3));
+    });
+
+    test('paging by the cursor skips no record that shares an atUs', () async {
+      for (final atUs in <int>[1, 2, 3, 3, 3, 4, 4, 5]) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final seen = <dynamic>[];
+      String since = '0';
+      for (var page = 0; page < 4; page++) {
+        final decoded = await decodeEvents({'since': since, 'limit': '3'});
+        seen.addAll((decoded['events'] as List<dynamic>).map((e) => e['atUs']));
+        since = '${decoded['cursor']}';
+      }
+
+      expect(seen, equals(<int>[1, 2, 3, 3, 3, 4, 4, 5]));
+    });
+
+    test('a limit that ends on a unique atUs adds no extra records', () async {
+      for (final atUs in <int>[1, 2, 3, 4]) {
+        TelescopeStore.recordEvent(eventAt(atUs));
+      }
+
+      final decoded = await decodeEvents({'since': '0', 'limit': '2'});
+      final events = decoded['events'] as List<dynamic>;
+
+      expect(events.map((e) => e['atUs']), equals(<int>[1, 2]));
+    });
+
     test('without since the limit keeps the newest records', () async {
       for (var atUs = 1; atUs <= 120; atUs++) {
         TelescopeStore.recordEvent(eventAt(atUs));
@@ -1044,6 +1083,36 @@ void main() {
       }
 
       expect(seen, equals(_range(1, 120)));
+    });
+
+    test('a page cut inside a run of one atUs keeps the whole run', () async {
+      for (final atUs in <int>[1, 2, 3, 3, 3, 4]) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final decoded = await decodeConsole({'since': '0', 'limit': '3'});
+      final messages = decoded['messages'] as List<dynamic>;
+
+      expect(messages.map((m) => m['atUs']), equals(<int>[1, 2, 3, 3, 3]));
+      expect(decoded['cursor'], equals(3));
+    });
+
+    test('paging by the cursor skips no record that shares an atUs', () async {
+      for (final atUs in <int>[1, 2, 3, 3, 3, 4, 4, 5]) {
+        TelescopeStore.recordLog(logAt(atUs));
+      }
+
+      final seen = <dynamic>[];
+      String since = '0';
+      for (var page = 0; page < 4; page++) {
+        final decoded = await decodeConsole({'since': since, 'limit': '3'});
+        seen.addAll(
+          (decoded['messages'] as List<dynamic>).map((m) => m['atUs']),
+        );
+        since = '${decoded['cursor']}';
+      }
+
+      expect(seen, equals(<int>[1, 2, 3, 3, 3, 4, 4, 5]));
     });
 
     test('without since the limit keeps the newest records', () async {

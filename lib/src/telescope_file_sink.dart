@@ -18,7 +18,9 @@ import 'telescope_store.dart';
 /// inside the directory the host passes to [start]; the package looks no
 /// directory up. Lines are batched and written at 64 lines or 500 ms,
 /// whichever comes first, and a new file starts before a line would push the
-/// current one past `maxFileBytes`. Once more than `maxFiles` timeline files
+/// current one past `maxFileBytes`. A file that already exists under the name
+/// (a sink started again within the same second) is appended to, never
+/// truncated. Once more than `maxFiles` timeline files
 /// sit in the directory (earlier launches included), the oldest are deleted.
 ///
 /// Fail closed: a record whose `redacted` flag is false (it was buffered
@@ -363,8 +365,14 @@ final class TelescopeFileSink {
       '${_directory.path}${Platform.pathSeparator}'
       'timeline-$_launchStamp-$counter.jsonl',
     );
-    _open = await file.open(mode: FileMode.write);
-    _files.add(_TimelineFile(file: file, counter: counter));
+    // The stamp has second precision, so a sink started again within the
+    // second names the file of the sink it replaced: append to it, and count
+    // what it already holds so the rotation threshold stays right.
+    final RandomAccessFile opened = await file.open(mode: FileMode.append);
+    _open = opened;
+    final _TimelineFile entry = _TimelineFile(file: file, counter: counter);
+    _files.add(entry);
+    entry.bytes = await opened.length();
 
     await _prune();
   }
@@ -468,8 +476,8 @@ final class TelescopeFileSink {
   }
 }
 
-/// A file the sink created: its handle, rotation counter and the bytes
-/// written to it so far.
+/// A file the sink opened: its handle, rotation counter and the bytes it
+/// holds so far, those a same-second launch left in it included.
 final class _TimelineFile {
   _TimelineFile({
     required this.file,
