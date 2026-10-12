@@ -10,6 +10,14 @@ This project follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.
 
 ---
 
+## [0.0.12] - 2026-10-13
+
+### Changed
+
+- **The artisan floor names this batch's release.** `fluttersdk_artisan` moves `^0.0.19` to `^0.0.20`. The old range already admitted 0.0.20, so a fresh `pub get` resolves nothing differently; what changes is that the floor names the release this package is verified against. artisan 0.0.20 is not breaking, and a consumer inherits one behaviour from it: a `telescope:*` command run while the app is still booting, before `ext.telescope.*` is registered, now prints one retry line and exits 75 instead of an RPC stack and exit 3. The requirements tables in `doc/getting-started/` and the stack lines in `CLAUDE.md` and `.github/copilot-instructions.md` quote the new floor. (`pubspec.yaml`, `doc/getting-started/`, `CLAUDE.md`, `.github/copilot-instructions.md`)
+
+---
+
 ## [0.0.11] - 2026-10-10
 
 ### Added
