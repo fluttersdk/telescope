@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^2.0.0
   fluttersdk_telescope:
     path: ../
-    version: 0.0.11
+    version: 0.0.12
   dio: ^5.11.1
   logging: ^1.2.0
 

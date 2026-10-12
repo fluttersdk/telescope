@@ -40,7 +40,7 @@ for every subsequent telescope command (`./bin/fsa telescope:tail`, etc.).
 |:-----------|:----------------|:------|
 | Dart SDK | `>= 3.4.0` | Required. |
 | Flutter SDK | `>= 3.22.0` | Required. Telescope needs the Flutter runtime for VM Service extensions. |
-| fluttersdk_artisan | `^0.0.19` | Pulled in transitively by telescope; the install command and MCP tools work without prior setup. |
+| fluttersdk_artisan | `^0.0.20` | Pulled in transitively by telescope; the install command and MCP tools work without prior setup. |
 | Magic stack | optional | Enables 6 additional watchers: HTTP facade, models, cache, events, gates, queries. |
 
 Telescope is a development package: it must never run in a release build. A `kDebugMode` or
